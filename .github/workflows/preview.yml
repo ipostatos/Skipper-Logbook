@@ -23,6 +23,7 @@ jobs:
       SIMULATOR: iPhone 16
       SCHEME_SHOTS: SkipperScreenshots
       SCHEME_APP: SkipperLogbook
+      APPETIZE_TOKEN: ${{ secrets.APPETIZE_API_TOKEN }}
 
     steps:
       - name: Checkout
@@ -31,8 +32,11 @@ jobs:
       - name: Show Xcode version
         run: xcodebuild -version
 
-      - name: Install tools (XcodeGen, xcparse, xcbeautify)
-        run: brew install xcodegen xcparse xcbeautify
+      - name: Install tools (XcodeGen, xcbeautify)
+        run: brew install xcodegen xcbeautify
+
+      - name: Install xcparse (best-effort; fallback exists)
+        run: brew install chargepoint/xcparse/xcparse || true
 
       - name: Generate Xcode project
         run: |
@@ -67,6 +71,7 @@ jobs:
 
       - name: Extract screenshots from result bundle
         if: always()
+        continue-on-error: true    # a screenshot hiccup must not fail the whole run
         run: |
           chmod +x scripts/extract-screenshots.sh
           ./scripts/extract-screenshots.sh build/Screenshots.xcresult screenshots
@@ -118,6 +123,27 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+      # Optional: publish the build to Appetize.io so it opens in a browser.
+      # Runs only when the APPETIZE_API_TOKEN repository secret is set; the token
+      # is NEVER hardcoded. Add it under Settings → Secrets and variables →
+      # Actions → New repository secret.
+      - name: Publish to Appetize.io
+        if: ${{ env.APPETIZE_TOKEN != '' }}
+        run: |
+          echo "→ uploading simulator build to Appetize.io"
+          RESPONSE="$(curl -sS --http1.1 \
+            -H "Authorization: Bearer $APPETIZE_TOKEN" \
+            -F "file=@artifact/SkipperLogbook-Simulator.zip" \
+            -F "platform=ios" \
+            https://api.appetize.io/v1/apps)"
+          PUBLIC_URL="$(printf '%s' "$RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin).get('publicURL',''))" 2>/dev/null || true)"
+          if [ -n "$PUBLIC_URL" ]; then
+            echo "APPETIZE_URL=$PUBLIC_URL" >> "$GITHUB_ENV"
+            echo "→ Appetize: $PUBLIC_URL"
+          else
+            echo "::warning::Appetize upload did not return a publicURL. Response: $RESPONSE"
+          fi
+
       - name: Job summary
         if: always()
         run: |
@@ -134,4 +160,9 @@ jobs:
             echo "Download **\`simulator-app\`** → \`SkipperLogbook-Simulator.zip\` (a zipped"
             echo "iOS-Simulator .app). Upload it to [Appetize.io](https://appetize.io/upload)"
             echo "(platform: iOS, type: Simulator) to open the app in a browser."
+            if [ -n "${APPETIZE_URL:-}" ]; then
+              echo ""
+              echo "### 🌐 Open in browser (Appetize)"
+              echo "**[$APPETIZE_URL]($APPETIZE_URL)**"
+            fi
           } >> "$GITHUB_STEP_SUMMARY"

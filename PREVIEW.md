@@ -52,20 +52,26 @@ content, and with `--seed-mob-active` so the emergency MOB search renders withou
 a live GPS fix. These flags are **development-only** — real users always start
 with an empty logbook.
 
-## Open it in a browser (optional, Appetize.io)
+## Open it in a browser (Appetize.io)
 
 The `simulator-app` artifact is an Appetize-compatible zipped simulator build.
-To run the app interactively in a browser:
 
-1. Download `SkipperLogbook-Simulator.zip` from the `simulator-app` artifact.
-2. Go to <https://appetize.io/upload>, sign in (free tier available).
-3. Upload the zip — **Platform: iOS**, **Type: Simulator** — and open the
-   generated URL.
+**Automatic (recommended).** The workflow uploads the build to Appetize on every
+run **when a repository secret named `APPETIZE_API_TOKEN` is set** — then the run's
+**Summary** page shows an *Open in browser (Appetize)* link. To enable it:
 
-Appetize upload is intentionally **not** automated in the workflow (it needs an
-account + API token). If you later want it auto-published on every run, add an
-`APPETIZE_API_TOKEN` repository secret and ask for the extra upload step to be
-wired in.
+1. Get an API token from Appetize → *Account → API*.
+2. In GitHub: **Settings → Secrets and variables → Actions → New repository
+   secret**, name it exactly `APPETIZE_API_TOKEN`, paste the token.
+3. Re-run the workflow. Without the secret, this step is skipped and the run
+   still succeeds (screenshots + artifact only).
+
+> 🔒 Never paste the token into code, chat, or commits — only into GitHub
+> Secrets. If it's ever exposed, regenerate it in Appetize.
+
+**Manual.** You can always upload the artifact yourself: download
+`SkipperLogbook-Simulator.zip`, go to <https://appetize.io/upload>, and upload it
+as **Platform: iOS**, **Type: Simulator**.
 
 ## How the screenshots are captured (for maintainers)
 

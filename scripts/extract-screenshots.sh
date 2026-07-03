@@ -19,25 +19,42 @@ if command -v xcparse >/dev/null 2>&1; then
 else
   echo "→ xcparse not found; falling back to xcresulttool"
   # Enumerate attachments and export each by id, naming by its suggested name.
+  # Xcode 16's xcresulttool requires the `object` subcommand + `--legacy` for
+  # the classic JSON graph; older Xcode accepts the same without `object`.
   TMP_JSON="$(mktemp)"
-  xcrun xcresulttool get --legacy --format json --path "$XCRESULT" > "$TMP_JSON" 2>/dev/null \
+  xcrun xcresulttool get object --legacy --format json --path "$XCRESULT" > "$TMP_JSON" 2>/dev/null \
+    || xcrun xcresulttool get --legacy --format json --path "$XCRESULT" > "$TMP_JSON" 2>/dev/null \
     || xcrun xcresulttool get --format json --path "$XCRESULT" > "$TMP_JSON"
-  python3 - "$XCRESULT" "$OUTDIR" "$TMP_JSON" <<'PY'
+
+  export_by_id() {
+    local rid="$1" dest="$2"
+    xcrun xcresulttool export object --legacy --type file --id "$rid" \
+      --path "$XCRESULT" --output-path "$dest" 2>/dev/null \
+    || xcrun xcresulttool export --legacy --type file --id "$rid" \
+      --path "$XCRESULT" --output-path "$dest" 2>/dev/null \
+    || xcrun xcresulttool export --type file --id "$rid" \
+      --path "$XCRESULT" --output-path "$dest" 2>/dev/null || true
+  }
+  export -f export_by_id
+  export XCRESULT
+
+  python3 - "$OUTDIR" "$TMP_JSON" <<'PY'
 import json, subprocess, sys, os
-xcresult, outdir, jpath = sys.argv[1], sys.argv[2], sys.argv[3]
+outdir, jpath = sys.argv[1], sys.argv[2]
 data = json.load(open(jpath))
+seen = set()
 
 def walk(node):
     if isinstance(node, dict):
-        # An attachment ref looks like {"filename": {...}, "payloadRef": {"id": {"_value": "..."}}}
         pr = node.get("payloadRef", {})
         rid = pr.get("id", {}).get("_value")
         fn = node.get("filename", {}).get("_value") or node.get("name", {}).get("_value")
         if rid and fn and fn.lower().endswith((".png", ".jpg", ".jpeg", ".heic")):
             dest = os.path.join(outdir, fn)
-            subprocess.run(["xcrun", "xcresulttool", "export", "--legacy",
-                            "--type", "file", "--id", rid,
-                            "--path", xcresult, "--output-path", dest], check=False)
+            key = (rid, fn)
+            if key not in seen:
+                seen.add(key)
+                subprocess.run(["bash", "-lc", f'export_by_id "{rid}" "{dest}"'], check=False)
         for v in node.values():
             walk(v)
     elif isinstance(node, list):

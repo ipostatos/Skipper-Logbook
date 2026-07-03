@@ -40,6 +40,13 @@ struct VesselEditView: View {
                 Section("vessel.machinery") {
                     TextField("vessel.engine", text: Binding.optionalText($vessel.engineModel))
                     numberField("vessel.fuel_tank", $vessel.fuelCapacityLiters)
+                    numberField("vessel.water_tank", $vessel.waterCapacityLiters)
+                }
+
+                Section("vessel.notes") {
+                    TextField("vessel.notes_placeholder",
+                              text: Binding.optionalText($vessel.notes), axis: .vertical)
+                        .lineLimit(3...6)
                 }
             }
             .navigationTitle("vessel.edit_title")

@@ -1,7 +1,7 @@
 # Setup — Skipper Logbook
 
 This project is authored as source + an [XcodeGen](https://github.com/yonyz/XcodeGen)
-spec. You generate the `.xcodeproj` on a Mac and open it in Xcode 15+ (iOS 17 SDK).
+spec. You generate the `.xcodeproj` on a Mac and open it in Xcode 16+ (iOS 18 SDK; the app targets iOS 17.0).
 
 ## 1. Generate & open
 
@@ -35,7 +35,7 @@ This creates three targets:
 
 ## 3. Run
 
-- Pick an **iPhone 15 (iOS 17+)** simulator, select the **SkipperLogbook** scheme, ⌘R.
+- Pick an **iPhone 16 (iOS 17+)** simulator, select the **SkipperLogbook** scheme, ⌘R.
 - Grant location when prompted. In the simulator, drive movement with
   **Features ▸ Location ▸ Freeway Drive** to see the track, speed and heading update.
 
@@ -76,6 +76,6 @@ strongly recommended — it wires all of this deterministically.
 
 ## Assumptions
 
-- Deployment target **iOS 17.0**, **Swift 5.9**, **Xcode 15+**.
+- Deployment target **iOS 17.0**, Swift language mode 5, **Xcode 16+** (the SDK's `View`-is-`@MainActor` isolation is assumed by the code).
 - Language mode 5 (strict concurrency off) to compile cleanly on first build.
 - CloudKit is intentionally **off** for BETA (models stay simple).

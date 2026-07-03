@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, "claude/**"]
   pull_request:
     branches: [main]
 
@@ -13,20 +13,29 @@ concurrency:
 jobs:
   build-and-test:
     name: Build & Test
-    runs-on: macos-14
+    # macos-15 ships Xcode 16.x, whose SDK marks SwiftUI's View protocol
+    # @MainActor — the isolation model this codebase is written against.
+    runs-on: macos-15
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Select Xcode 15
-        run: sudo xcode-select -switch /Applications/Xcode_15.4.app
+      - name: Show Xcode version
+        run: xcodebuild -version
 
       - name: Install XcodeGen
         run: brew install xcodegen
 
       - name: Generate project
-        run: xcodegen generate
+        run: |
+          xcodegen generate
+          # Belt and braces: newer XcodeGen releases can emit a project format
+          # (objectVersion 77, Xcode 16.3+) that Xcode 15.4 refuses to open.
+          # Normalize to the Xcode 14/15 format; harmless when already 56.
+          sed -i '' -E 's/objectVersion = [0-9]+;/objectVersion = 56;/' \
+            SkipperLogbook.xcodeproj/project.pbxproj
+          grep -m1 'objectVersion' SkipperLogbook.xcodeproj/project.pbxproj
 
       - name: Build & test
         run: |
@@ -34,13 +43,13 @@ jobs:
           xcodebuild \
             -project SkipperLogbook.xcodeproj \
             -scheme SkipperLogbook \
-            -destination 'platform=iOS Simulator,name=iPhone 15,OS=17.5' \
+            -destination 'platform=iOS Simulator,name=iPhone 16' \
             -skipPackagePluginValidation \
             CODE_SIGNING_ALLOWED=NO \
             clean build test | xcbeautify || xcodebuild \
             -project SkipperLogbook.xcodeproj \
             -scheme SkipperLogbook \
-            -destination 'platform=iOS Simulator,name=iPhone 15,OS=17.5' \
+            -destination 'platform=iOS Simulator,name=iPhone 16' \
             CODE_SIGNING_ALLOWED=NO \
             clean build test
 

@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 import Observation
 
 /// The five bottom-bar destinations. Liquid Nautical order:
@@ -38,6 +39,7 @@ enum AppRoute: Hashable {
     case seasonLog
     case deviation
     case statistics
+    case weather
     case settings
     case voyageDetail(PersistentIDBox)
 }

@@ -7,14 +7,18 @@ import SwiftData
 /// Screen accent is blue (navigation).
 struct TodayView: View {
     @Environment(\.appTheme) private var theme
+    @Environment(\.openURL) private var openURL
     @Environment(AppRouter.self) private var router
     @Environment(AppState.self) private var appState
     @Environment(LocationManager.self) private var location
     @Environment(VoyageRecorder.self) private var recorder
     @Environment(MOBEngine.self) private var mob
+    @Environment(AnchorWatchEngine.self) private var anchorWatch
 
     @Query private var vessels: [Vessel]
     @Query(sort: \Voyage.startedAt, order: .reverse) private var voyages: [Voyage]
+
+    @State private var mobNoFix = false
 
     private var vessel: Vessel? { vessels.first }
     private var recent: [Voyage] { voyages.filter { !$0.isRecording }.prefix(3).map { $0 } }
@@ -27,6 +31,8 @@ struct TodayView: View {
         ScrollView {
             VStack(spacing: Spacing.md) {
                 header
+                if mob.isActive { mobActiveBanner }
+                if locationDenied { locationPermissionCard }
                 if recorder.isRecording {
                     activeVoyageCard
                     courseCard
@@ -34,11 +40,12 @@ struct TodayView: View {
                 } else {
                     startCard
                 }
+                if anchorWatch.isActive { anchoredCard }
                 mobCard
                 StatusChipRow(engineOn: appState.engineOn,
                               mainsailPercent: appState.mainsailPercent,
                               jibPercent: appState.jibPercent,
-                              anchorDown: appState.anchorDown,
+                              anchorDown: anchorWatch.isActive,
                               onEngine: toggleEngine, onSails: toggleSails,
                               onAnchor: { router.present(.anchorWatch) },
                               onNote: { router.present(.addLogEvent) })
@@ -51,6 +58,9 @@ struct TodayView: View {
         }
         .background(theme.background)
         .scrollIndicators(.hidden)
+        .alert("mob.no_fix_title", isPresented: $mobNoFix) {
+            Button("common.ok", role: .cancel) {}
+        } message: { Text("mob.no_fix_message") }
     }
 
     // MARK: Header
@@ -170,30 +180,104 @@ struct TodayView: View {
         }
     }
 
-    // MARK: MOB card
+    // MARK: Smart-state cards
 
-    private var mobCard: some View {
-        Button { triggerMOB() } label: {
+    private var locationDenied: Bool {
+        location.permission == .denied || location.permission == .restricted
+    }
+
+    /// Location denied → live metrics can't work; explain and point to Settings.
+    /// Manual logbook keeps working regardless.
+    private var locationPermissionCard: some View {
+        PermissionCard(symbol: "location.slash",
+                       title: "permission.location_card_title",
+                       message: "permission.location_card_message",
+                       actionTitle: "permission.open_settings") {
+            if let url = URL(string: UIApplication.openSettingsURLString) {
+                openURL(url)
+            }
+        }
+    }
+
+    /// An MOB is active → this beats everything else on the screen. Red is
+    /// reserved for exactly this.
+    private var mobActiveBanner: some View {
+        Button { router.presentMOB() } label: {
             HStack(spacing: Spacing.sm) {
-                ZStack {
-                    Circle().fill(theme.danger.opacity(0.15)).frame(width: 60, height: 60)
-                    Circle().fill(theme.danger).frame(width: 46, height: 46)
-                    Image(systemName: "figure.wave").foregroundStyle(.white).font(.system(size: 20, weight: .bold))
-                }
+                Image(systemName: "figure.wave")
+                    .font(.system(size: 22, weight: .bold))
+                    .foregroundStyle(.white)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("MOB").font(.system(size: 20, weight: .heavy)).foregroundStyle(theme.danger)
-                    Text("today.mob_hint").font(AppFont.footnote).foregroundStyle(theme.inkSecondary)
+                    Text("today.mob_active").font(AppFont.headline).foregroundStyle(.white)
+                    Text("today.mob_active_sub").font(AppFont.footnote).foregroundStyle(.white.opacity(0.85))
                 }
                 Spacer()
-                Image(systemName: "chevron.right").foregroundStyle(theme.danger.opacity(0.6))
+                Image(systemName: "chevron.right").foregroundStyle(.white.opacity(0.8))
             }
             .padding(Spacing.md)
             .background(
                 RoundedRectangle(cornerRadius: theme.cornerRadius, style: .continuous)
-                    .fill(theme.danger.opacity(0.08))
+                    .fill(theme.danger)
             )
         }
         .buttonStyle(.plain)
+    }
+
+    /// Anchor watch running → the dashboard's "anchored" state: distance vs.
+    /// radius at a glance, red only if actually dragging.
+    private var anchoredCard: some View {
+        Button { router.present(.anchorWatch) } label: {
+            Card {
+                HStack(spacing: Spacing.sm) {
+                    Image(systemName: "anchor.fill")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(anchorWatch.isDragging ? theme.danger : theme.cyan)
+                        .frame(width: 40, height: 40)
+                        .background(Circle().fill((anchorWatch.isDragging ? theme.danger : theme.cyan)
+                            .opacity(theme.isDark ? 0.22 : 0.12)))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(anchorWatch.isDragging ? "today.anchor_dragging" : "today.anchored")
+                            .font(AppFont.headline)
+                            .foregroundStyle(anchorWatch.isDragging ? theme.danger : theme.ink)
+                        Text("\(Int(anchorWatch.currentDistanceMeters)) m / \(Int(anchorWatch.session?.radiusMeters ?? 0)) m")
+                            .font(AppFont.footnote).foregroundStyle(theme.inkSecondary)
+                            .monospacedDigit()
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right").foregroundStyle(theme.inkTertiary)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: MOB card
+
+    /// Hold-to-activate, like every MOB control in the app — an emergency
+    /// trigger must not fire on an accidental tap.
+    private var mobCard: some View {
+        HStack(spacing: Spacing.sm) {
+            ZStack {
+                Circle().fill(theme.danger.opacity(0.15)).frame(width: 60, height: 60)
+                Circle().fill(theme.danger).frame(width: 46, height: 46)
+                Image(systemName: "figure.wave").foregroundStyle(.white).font(.system(size: 20, weight: .bold))
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text("MOB").font(.system(size: 20, weight: .heavy)).foregroundStyle(theme.danger)
+                Text("today.mob_hint").font(AppFont.footnote).foregroundStyle(theme.inkSecondary)
+            }
+            Spacer()
+            Image(systemName: "chevron.right").foregroundStyle(theme.danger.opacity(0.6))
+        }
+        .padding(Spacing.md)
+        .background(
+            RoundedRectangle(cornerRadius: theme.cornerRadius, style: .continuous)
+                .fill(theme.danger.opacity(0.08))
+        )
+        .contentShape(RoundedRectangle(cornerRadius: theme.cornerRadius, style: .continuous))
+        .onLongPressGesture(minimumDuration: MOBButton.holdDuration) { triggerMOB() }
+        .accessibilityLabel("Man overboard")
+        .accessibilityHint(Text("safety.press_hold"))
     }
 
     // MARK: Stats grid
@@ -238,7 +322,7 @@ struct TodayView: View {
             Image(systemName: "sailboat").foregroundStyle(theme.blue).frame(width: 24)
             VStack(alignment: .leading, spacing: 2) {
                 Text(voyage.name).font(AppFont.subheadline).foregroundStyle(theme.ink)
-                Text("\(voyage.startedAt.shortDate) · \(voyage.distanceNM.oneDecimal) nm")
+                Text("\(voyage.startedAt.shortDate()) · \(voyage.distanceNM.oneDecimal) nm")
                     .font(AppFont.caption).foregroundStyle(theme.inkSecondary)
             }
             Spacer()
@@ -260,12 +344,13 @@ struct TodayView: View {
     // MARK: Actions
 
     private func triggerMOB() {
-        if let coord = location.currentCoordinate {
-            mob.trigger(at: coord)
-            if recorder.isRecording { recorder.addEvent(.mob, at: coord, heading: location.effectiveHeading) }
+        // The engine drops the marker, logs, and haptic-confirms — every MOB
+        // path in the app behaves identically, with or without a GPS fix.
+        if mob.trigger(from: location) {
+            router.presentMOB()
+        } else {
+            mobNoFix = true   // time is logged; explain instead of an empty search
         }
-        UINotificationFeedbackGenerator().notificationOccurred(.warning)
-        router.presentMOB()
     }
 
     private func toggleEngine() {
@@ -299,6 +384,7 @@ struct TodayView: View {
                 .environment(LocationManager())
                 .environment(VoyageRecorder(context: context))
                 .environment(MOBEngine(context: context))
+                .environment(AnchorWatchEngine(context: context))
                 .modelContainer(container)
         }
     }

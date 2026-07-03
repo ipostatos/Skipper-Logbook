@@ -6,6 +6,7 @@ import SwiftData
 /// Maintenance. Editable via the toolbar.
 struct VesselView: View {
     @Environment(\.appTheme) private var theme
+    @Environment(\.modelContext) private var context
     @Environment(AppRouter.self) private var router
     @Query private var vessels: [Vessel]
     @State private var editing = false
@@ -19,12 +20,20 @@ struct VesselView: View {
                     photo(vessel)
                     header(vessel)
                     specTable(vessel)
+                    if let notes = vessel.notes, !notes.isEmpty { notesCard(notes) }
                     links
                 }
                 .padding(.horizontal, Spacing.pageMargin)
                 .padding(.bottom, Spacing.tabBarClearance)
             } else {
-                EmptyStateView(symbol: "sailboat", title: "vessel.empty")
+                VStack(spacing: Spacing.md) {
+                    EmptyStateView(symbol: "sailboat", title: "vessel.empty",
+                                   message: "vessel.empty_message")
+                    PrimaryButton(title: "vessel.add", symbol: "plus", role: .accent) {
+                        createVessel()
+                    }
+                }
+                .padding(.horizontal, Spacing.pageMargin)
             }
         }
         .background(theme.background)
@@ -75,9 +84,26 @@ struct VesselView: View {
                 specRow("vessel.beam", vessel.beamMeters.map { "\($0.formatted(2)) m" })
                 specRow("vessel.draft", vessel.draftMeters.map { "\($0.formatted(2)) m" })
                 specRow("vessel.engine", vessel.engineModel)
-                specRow("vessel.fuel_tank", vessel.fuelCapacityLiters.map { "\(Int($0)) L" }, last: true)
+                specRow("vessel.fuel_tank", vessel.fuelCapacityLiters.map { "\(Int($0)) L" })
+                specRow("vessel.water_tank", vessel.waterCapacityLiters.map { "\(Int($0)) L" }, last: true)
             }
         }
+    }
+
+    private func notesCard(_ notes: String) -> some View {
+        Card {
+            VStack(alignment: .leading, spacing: Spacing.xs) {
+                SectionHeader("vessel.notes")
+                Text(notes).font(AppFont.subheadline).foregroundStyle(theme.ink)
+            }
+        }
+    }
+
+    private func createVessel() {
+        let vessel = Vessel(name: String(localized: "vessel.default_name"))
+        context.insert(vessel)
+        try? context.save()
+        editing = true
     }
 
     @ViewBuilder

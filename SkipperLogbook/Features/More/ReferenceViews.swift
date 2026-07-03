@@ -45,7 +45,7 @@ struct EquipmentListView: View {
             VStack(alignment: .trailing, spacing: 2) {
                 Text("×\(item.quantity)").font(AppFont.subheadline.monospacedDigit()).foregroundStyle(theme.ink)
                 if let exp = item.expiresAt {
-                    Text(exp.shortDate).font(AppFont.caption)
+                    Text(exp.shortDate()).font(AppFont.caption)
                         .foregroundStyle(exp < .now ? theme.danger : theme.inkSecondary)
                 }
             }
@@ -72,7 +72,7 @@ struct ServiceNotesView: View {
                                 HStack {
                                     Text(note.title).font(AppFont.headline).foregroundStyle(theme.ink)
                                     Spacer()
-                                    Text(note.createdAt.shortDate).font(AppFont.caption).foregroundStyle(theme.inkSecondary)
+                                    Text(note.createdAt.shortDate()).font(AppFont.caption).foregroundStyle(theme.inkSecondary)
                                 }
                                 Text(note.body).font(AppFont.subheadline).foregroundStyle(theme.inkSecondary)
                                 if let h = note.engineHours {

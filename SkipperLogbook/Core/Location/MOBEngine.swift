@@ -1,10 +1,15 @@
 import Foundation
 import SwiftData
 import Observation
+import SwiftUI
+import os
 
 /// Man-Overboard controller. Saves the point the instant it is triggered, then
 /// exposes live distance + bearing from the boat back to the person so the
 /// active search screen can render the timer, range and homing compass arrow.
+/// The engine owns the logbook trail — every trigger/resolve writes exactly one
+/// entry, so all entry points (Today, Safety, Quick Actions, Map) behave
+/// identically, including when there is no GPS fix.
 @Observable
 @MainActor
 final class MOBEngine {
@@ -14,6 +19,7 @@ final class MOBEngine {
     private(set) var bearingDegrees: Double = 0     // from boat → MOB point
 
     private let context: ModelContext
+    private let log = Logger(subsystem: "com.skipperlogbook.app", category: "MOBEngine")
 
     init(context: ModelContext) {
         self.context = context
@@ -29,9 +35,37 @@ final class MOBEngine {
 
     // MARK: Control
 
-    /// Drop an MOB marker at the current position. Returns the new point.
+    /// Full MOB activation from a UI entry point: drops the marker at the
+    /// current position when a fix exists; without one it still records the
+    /// incident time in the logbook — the timestamp is the one thing a search
+    /// can't do without. Haptic-confirms either way.
+    ///
+    /// Returns whether an MOB point is active afterwards — callers open the
+    /// search screen only on `true`; on `false` they explain the missing fix
+    /// instead of showing an empty search.
     @discardableResult
-    func trigger(at coordinate: GeoCoordinate) -> MOBPoint {
+    func trigger(from location: LocationManager) -> Bool {
+        if let coord = location.currentCoordinate {
+            trigger(at: coord,
+                    speedKn: Units.mpsToKnots(location.speedMps),
+                    heading: location.effectiveHeading)
+        } else {
+            LogEvent.record(.mob, in: context,
+                            note: String(localized: "mob.no_fix_note"))
+            save()
+        }
+        UINotificationFeedbackGenerator().notificationOccurred(.warning)
+        return isActive
+    }
+
+    /// Drop an MOB marker. If an incident is already active, it is kept as-is —
+    /// the original position and time are what the search needs; no duplicate
+    /// point or logbook entry is created.
+    @discardableResult
+    func trigger(at coordinate: GeoCoordinate,
+                 speedKn: Double? = nil,
+                 heading: Double? = nil) -> MOBPoint {
+        if let existing = activePoint { return existing }
         let point = MOBPoint(timestamp: .now,
                              latitude: coordinate.latitude,
                              longitude: coordinate.longitude)
@@ -39,6 +73,8 @@ final class MOBEngine {
         activePoint = point
         distanceMeters = 0
         bearingDegrees = 0
+        LogEvent.record(.mob, in: context, at: coordinate,
+                        heading: heading, speedKn: speedKn)
         save()
         return point
     }
@@ -48,6 +84,7 @@ final class MOBEngine {
         p.resolved = true
         p.resolvedAt = .now
         activePoint = nil
+        LogEvent.record(.mobResolved, in: context, at: p.coordinate)
         save()
     }
 
@@ -67,7 +104,8 @@ final class MOBEngine {
     }
 
     private func save() {
-        do { try context.save() } catch { }
+        do { try context.save() }
+        catch { log.error("MOB save failed: \(error.localizedDescription, privacy: .public)") }
     }
 
     private static func fetchActive(in context: ModelContext) -> MOBPoint? {

@@ -92,4 +92,22 @@ final class Voyage {
     var orderedEvents: [LogEvent] {
         events.sorted { $0.timestamp > $1.timestamp }
     }
+
+    /// Events oldest-first — the order exports and replays want.
+    var chronologicalEvents: [LogEvent] {
+        events.sorted { $0.timestamp < $1.timestamp }
+    }
+}
+
+extension Voyage {
+    /// The voyage currently being recorded, if any. Shared by the safety engines
+    /// so the logbook events they write attach to the right trip.
+    static func recording(in context: ModelContext) -> Voyage? {
+        var descriptor = FetchDescriptor<Voyage>(
+            predicate: #Predicate { $0.isRecording == true },
+            sortBy: [SortDescriptor(\.startedAt, order: .reverse)]
+        )
+        descriptor.fetchLimit = 1
+        return (try? context.fetch(descriptor))?.first
+    }
 }

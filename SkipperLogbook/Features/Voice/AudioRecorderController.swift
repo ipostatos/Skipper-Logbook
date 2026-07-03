@@ -23,6 +23,13 @@ final class AudioRecorderController: NSObject {
 
     static let folderName = "VoiceNotes"
 
+    /// Every stored property has a nonisolated-safe default, so creating the
+    /// controller is legal from any context — required because `@State`
+    /// default values are evaluated outside the main actor in Swift 5.10.
+    nonisolated override init() {
+        super.init()
+    }
+
     static var folderURL: URL {
         let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         let url = docs.appendingPathComponent(folderName, isDirectory: true)

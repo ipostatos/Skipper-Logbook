@@ -2,6 +2,7 @@ import Foundation
 import SwiftData
 import CoreLocation
 import Observation
+import os
 
 /// Drives an active voyage: starts/stops recording, ingests location fixes into
 /// `TrackPoint`s, integrates distance, tracks engine time, and derives the live
@@ -12,6 +13,7 @@ final class VoyageRecorder {
 
     private(set) var activeVoyage: Voyage?
     private let context: ModelContext
+    private let log = Logger(subsystem: "com.skipperlogbook.app", category: "VoyageRecorder")
 
     /// Current propulsion mode, toggled by the quick actions (engine/sail state).
     var propulsion: PropulsionMode = .idle
@@ -140,6 +142,22 @@ final class VoyageRecorder {
         return event
     }
 
+    /// Sets or moves the active voyage's destination waypoint, logs the turn,
+    /// and persists — the one place the waypoint rules live, whatever screen
+    /// sets it.
+    func setDestination(_ coordinate: GeoCoordinate, name: String? = nil,
+                        from current: GeoCoordinate? = nil, heading: Double? = nil) {
+        guard let voyage = activeVoyage else { return }
+        voyage.destinationLat = coordinate.latitude
+        voyage.destinationLon = coordinate.longitude
+        if let name {
+            voyage.destinationName = name
+        } else if voyage.destinationName == nil {
+            voyage.destinationName = String(localized: "map.waypoint")
+        }
+        addEvent(.turnToWaypoint, at: current, heading: heading) // also saves
+    }
+
     // MARK: Derived live values
 
     func remainingDistanceMeters(from coordinate: GeoCoordinate?) -> Double? {
@@ -160,8 +178,9 @@ final class VoyageRecorder {
     // MARK: Persistence
 
     private func save() {
+        // Transient failures retry on the next fix, but never silently.
         do { try context.save() }
-        catch { /* transient; next save retries */ }
+        catch { log.error("Recorder save failed: \(error.localizedDescription, privacy: .public)") }
     }
 
     private static func fetchRecording(in context: ModelContext) -> Voyage? {

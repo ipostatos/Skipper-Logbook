@@ -9,6 +9,8 @@ struct VoyageDetailView: View {
     @Environment(\.modelContext) private var context
     let voyageID: PersistentIdentifier
 
+    @State private var exportItem: ExportItem?
+
     private var voyage: Voyage? { context.model(for: voyageID) as? Voyage }
 
     var body: some View {
@@ -29,6 +31,31 @@ struct VoyageDetailView: View {
         .background(theme.background)
         .navigationTitle(voyage?.name ?? "")
         .navigationBarTitleDisplayMode(.large)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                // Files are generated at tap time, so a still-recording voyage
+                // exports its current state, never a view-appear snapshot.
+                if let voyage {
+                    Menu {
+                        Button {
+                            exportItem = (try? ExportService.writeCSV(for: voyage)).map(ExportItem.init)
+                        } label: {
+                            Label("voyage.export_csv", systemImage: "tablecells")
+                        }
+                        Button {
+                            exportItem = (try? ExportService.writeGPX(for: voyage)).map(ExportItem.init)
+                        } label: {
+                            Label("voyage.export_gpx", systemImage: "map")
+                        }
+                    } label: {
+                        Image(systemName: "square.and.arrow.up")
+                    }
+                }
+            }
+        }
+        .sheet(item: $exportItem) { item in
+            ShareSheet(items: [item.url])
+        }
     }
 
     private func trackMap(_ voyage: Voyage) -> some View {
@@ -83,4 +110,22 @@ struct VoyageDetailView: View {
             }
         }
     }
+}
+
+/// Identifiable wrapper so `.sheet(item:)` can present a freshly written file.
+private struct ExportItem: Identifiable {
+    let url: URL
+    var id: String { url.absoluteString }
+}
+
+/// Thin UIKit bridge — `ShareLink` needs its URL up front, but we only want to
+/// build the file when the user actually asks for it.
+private struct ShareSheet: UIViewControllerRepresentable {
+    let items: [Any]
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: items, applicationActivities: nil)
+    }
+
+    func updateUIViewController(_ controller: UIActivityViewController, context: Context) {}
 }

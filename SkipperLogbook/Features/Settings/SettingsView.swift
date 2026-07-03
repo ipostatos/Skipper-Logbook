@@ -25,17 +25,24 @@ struct SettingsView: View {
             }
 
             Section("settings.units") {
+                // Displays are nautical-only for now; a working switch ships
+                // with the unit formatter pass. Until then: honest Coming soon.
                 Picker("settings.unit_system", selection: $appState.unitSystem) {
                     ForEach(UnitSystem.allCases) { u in
                         Text(LocalizedStringKey(u.titleKey)).tag(u)
                     }
                 }
+                .comingSoon()
             }
 
             Section("settings.tracking") {
                 Toggle("settings.background_tracking", isOn: $location.allowsBackground)
                 Text("settings.background_hint")
                     .font(AppFont.footnote).foregroundStyle(theme.inkSecondary)
+                if location.backgroundUpgradeNeeded {
+                    Text("settings.background_needs_always")
+                        .font(AppFont.footnote).foregroundStyle(theme.warning)
+                }
                 LabeledContent("settings.location_permission") {
                     Text(location.permission.titleKey).foregroundStyle(theme.inkSecondary)
                 }

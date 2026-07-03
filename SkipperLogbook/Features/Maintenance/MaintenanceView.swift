@@ -56,7 +56,7 @@ struct MaintenanceItemRow: View {
         HStack(spacing: Spacing.sm) {
             VStack(alignment: .leading, spacing: 3) {
                 Text(item.title).font(AppFont.subheadline.weight(.semibold)).foregroundStyle(theme.ink)
-                Text(item.performedAt.shortDate).font(AppFont.caption).foregroundStyle(theme.inkSecondary)
+                Text(item.performedAt.shortDate()).font(AppFont.caption).foregroundStyle(theme.inkSecondary)
                 if let detail = item.detail {
                     Text(detail).font(AppFont.caption).foregroundStyle(theme.inkTertiary)
                 }
@@ -99,7 +99,7 @@ struct NextServiceCard: View {
     private var nextSummary: String {
         var parts: [String] = []
         if let h = item.nextServiceHours { parts.append(String(format: String(localized: "maintenance.in_hours"), Int(h))) }
-        if let d = item.nextServiceDate { parts.append(String(format: String(localized: "maintenance.by_date"), d.shortDate)) }
+        if let d = item.nextServiceDate { parts.append(String(format: String(localized: "maintenance.by_date"), d.shortDate())) }
         return parts.joined(separator: " · ")
     }
 }

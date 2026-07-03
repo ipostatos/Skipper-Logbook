@@ -48,7 +48,7 @@ struct RootView: View {
                 MOBActiveView().environment(\.appTheme, theme)
             }
         }
-        .onAppear { location.start(); syncWidgets() }
+        .onAppear { location.start(); updateSafetyOverride(); syncWidgets() }
         .onChange(of: location.currentLocation) { _, newValue in
             guard let loc = newValue else { return }
             recorder.ingest(loc)
@@ -57,6 +57,14 @@ struct RootView: View {
             syncWidgets()
         }
         .onChange(of: recorder.isRecording) { _, _ in syncWidgets() }
+        .onChange(of: anchorWatch.isActive) { _, _ in updateSafetyOverride() }
+        .onChange(of: mob.isActive) { _, _ in updateSafetyOverride() }
+    }
+
+    /// While a safety engine runs, keep location flowing in the background so
+    /// the anchor alarm / MOB range stay live with the phone locked.
+    private func updateSafetyOverride() {
+        location.safetyBackgroundOverride = anchorWatch.isActive || mob.isActive
     }
 
     /// Builds a snapshot from current state and pushes it to widgets + Live
@@ -195,6 +203,7 @@ private struct AppRoutesModifier: ViewModifier {
             case .seasonLog:    SeasonLogView()
             case .deviation:    DeviationView()
             case .statistics:   StatisticsView()
+            case .weather:      WeatherView()
             case .settings:     SettingsView()
             case .voyageDetail(let box): VoyageDetailView(voyageID: box.id)
             }

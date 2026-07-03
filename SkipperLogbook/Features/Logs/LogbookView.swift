@@ -34,8 +34,26 @@ struct LogbookView: View {
         }
     }
 
-    private var grouped: [(day: Date, items: [LogEvent])] {
-        Date.groupByDay(filteredEvents, date: { $0.timestamp })
+    /// Events + voice notes merged into one reverse-chronological stream, so a
+    /// voice note filed at 10:04 sits between the 09:58 and 10:12 entries.
+    /// Notes join only the All filter — Audio has its own dedicated section.
+    private var timelineItems: [TimelineItem] {
+        var items = filteredEvents.map(TimelineItem.event)
+        if filter == .all {
+            let q = searchText.lowercased()
+            let notes = voiceNotes.filter {
+                q.isEmpty
+                    || $0.title.lowercased().contains(q)
+                    || ($0.tagsRaw ?? "").lowercased().contains(q)
+                    || ($0.transcript?.lowercased().contains(q) ?? false)
+            }
+            items.append(contentsOf: notes.map(TimelineItem.voice))
+        }
+        return items.sorted { $0.timestamp > $1.timestamp }
+    }
+
+    private var grouped: [(day: Date, items: [TimelineItem])] {
+        Date.groupByDay(timelineItems, date: { $0.timestamp })
     }
 
     var body: some View {
@@ -59,11 +77,8 @@ struct LogbookView: View {
                         Section {
                             Card(padding: Spacing.xxs) {
                                 VStack(spacing: 0) {
-                                    ForEach(Array(section.items.enumerated()), id: \.element.id) { i, event in
-                                        NavigationLink(value: EntryRef(id: event.persistentModelID)) {
-                                            LogEventRow(event: event)
-                                        }
-                                        .buttonStyle(.plain)
+                                    ForEach(Array(section.items.enumerated()), id: \.element.id) { i, item in
+                                        timelineRow(item)
                                         if i < section.items.count - 1 { Divider().overlay(theme.hairline) }
                                     }
                                 }
@@ -93,6 +108,11 @@ struct LogbookView: View {
             ToolbarItem(placement: .topBarTrailing) {
                 Button { showAudioLog = true } label: {
                     Image(systemName: "mic.badge.plus")
+                }
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                Button { router.present(.addLogEvent) } label: {
+                    Image(systemName: "square.and.pencil")
                 }
             }
         }
@@ -130,6 +150,21 @@ struct LogbookView: View {
                 }
             }
             .padding(.horizontal, Spacing.pageMargin)
+        }
+    }
+
+    // MARK: Timeline rows
+
+    @ViewBuilder
+    private func timelineRow(_ item: TimelineItem) -> some View {
+        switch item {
+        case .event(let event):
+            NavigationLink(value: EntryRef(id: event.persistentModelID)) {
+                LogEventRow(event: event)
+            }
+            .buttonStyle(.plain)
+        case .voice(let note):
+            AudioNoteRow(note: note)
         }
     }
 
@@ -197,7 +232,8 @@ enum LogFilter: String, CaseIterable, Identifiable {
         case .navigation: return [.startTrack, .startLogging, .turnToWaypoint, .waypointReached].contains(type)
         case .engine: return [.engineOn, .engineOff].contains(type)
         case .sails:  return [.sailsUp, .sailsDown, .reef].contains(type)
-        case .safety: return [.mob, .anchorDown, .anchorUp, .weather].contains(type)
+        case .safety:
+            return [.mob, .mobResolved, .anchorDown, .anchorUp, .anchorAlarm, .weather].contains(type)
         case .audio:  return false
         }
     }
@@ -205,6 +241,26 @@ enum LogFilter: String, CaseIterable, Identifiable {
 
 /// Hashable reference to a log entry for navigation.
 struct EntryRef: Hashable { let id: PersistentIdentifier }
+
+/// One row in the merged Logbook timeline: a log entry or a voice note.
+private enum TimelineItem: Identifiable {
+    case event(LogEvent)
+    case voice(VoiceNote)
+
+    var id: PersistentIdentifier {
+        switch self {
+        case .event(let event): return event.persistentModelID
+        case .voice(let note):  return note.persistentModelID
+        }
+    }
+
+    var timestamp: Date {
+        switch self {
+        case .event(let event): return event.timestamp
+        case .voice(let note):  return note.createdAt
+        }
+    }
+}
 
 /// The voyage summary banner: name + duration / distance / fuel (mirrors the
 /// dark "Dragon Winter Series" banner in the mockups).

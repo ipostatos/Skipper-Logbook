@@ -8,17 +8,17 @@ struct SkipperLogbookApp: App {
     /// `mainContext`.
     private let container: ModelContainer
 
-    @State private var appState = AppState()
-    @State private var themeManager = ThemeManager()
-    @State private var router = AppRouter()
-    @State private var locationManager = LocationManager()
-    @State private var permissions = PermissionsCenter()
+    @State private var appState: AppState
+    @State private var themeManager: ThemeManager
+    @State private var router: AppRouter
+    @State private var locationManager: LocationManager
+    @State private var permissions: PermissionsCenter
 
     // Engines depend on the model context, so they're built after the container.
     @State private var recorder: VoyageRecorder
     @State private var anchorWatch: AnchorWatchEngine
     @State private var mob: MOBEngine
-    @State private var liveActivity = LiveActivityController()
+    @State private var liveActivity: LiveActivityController
 
     init() {
         let container = PersistenceController.makeContainer()
@@ -32,9 +32,18 @@ struct SkipperLogbookApp: App {
             SeedData.seedIfNeeded(context)
         }
 
+        // Swift 5.10 evaluates stored-property default values in a nonisolated
+        // context, so the @MainActor singletons must be built here, inside the
+        // App's @MainActor init.
+        _appState = State(initialValue: AppState())
+        _themeManager = State(initialValue: ThemeManager())
+        _router = State(initialValue: AppRouter())
+        _locationManager = State(initialValue: LocationManager())
+        _permissions = State(initialValue: PermissionsCenter())
         _recorder = State(initialValue: VoyageRecorder(context: context))
         _anchorWatch = State(initialValue: AnchorWatchEngine(context: context))
         _mob = State(initialValue: MOBEngine(context: context))
+        _liveActivity = State(initialValue: LiveActivityController())
     }
 
     var body: some Scene {

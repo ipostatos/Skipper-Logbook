@@ -53,6 +53,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   their tags.
 - CI: pinned the XcodeGen project format for Xcode 15.x and corrected
   `SWIFT_VERSION` to a valid language mode (5.0).
+- Swift 5.10 actor-isolation: `@MainActor` singletons are now built inside the
+  App's `@MainActor` init (not as `@State` default values), and
+  `AudioRecorderController` gained a `nonisolated` init.
 
 ## [0.9.0] — 2026-07-03 · BETA
 

@@ -82,7 +82,8 @@ System themes (neutral Apple-style dark).
 
 ## Requirements & getting started
 
-- **macOS** with **Xcode 15+** (Swift 5.9, iOS 17 SDK)
+- **macOS** with **Xcode 16+** (iOS 18 SDK — its `View`-is-`@MainActor` isolation
+  model is what the code is written against; the app still targets iOS 17.0)
 - [XcodeGen](https://github.com/yonyz/XcodeGen)
 
 ```bash

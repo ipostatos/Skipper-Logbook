@@ -19,6 +19,9 @@ struct DashboardReadout {
     let fuelRemainingL: Double?
     let etaSeconds: Double?
 
+    /// Reads the @MainActor engines synchronously, so the factory is isolated
+    /// too — views (themselves main-actor) call it from `body`.
+    @MainActor
     static func make(location: LocationManager,
                      recorder: VoyageRecorder,
                      vesselFuelCapacity: Double?) -> DashboardReadout {

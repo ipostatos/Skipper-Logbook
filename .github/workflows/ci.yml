@@ -13,14 +13,16 @@ concurrency:
 jobs:
   build-and-test:
     name: Build & Test
-    runs-on: macos-14
+    # macos-15 ships Xcode 16.x, whose SDK marks SwiftUI's View protocol
+    # @MainActor — the isolation model this codebase is written against.
+    runs-on: macos-15
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Select Xcode 15
-        run: sudo xcode-select -switch /Applications/Xcode_15.4.app
+      - name: Show Xcode version
+        run: xcodebuild -version
 
       - name: Install XcodeGen
         run: brew install xcodegen
@@ -41,13 +43,13 @@ jobs:
           xcodebuild \
             -project SkipperLogbook.xcodeproj \
             -scheme SkipperLogbook \
-            -destination 'platform=iOS Simulator,name=iPhone 15,OS=17.5' \
+            -destination 'platform=iOS Simulator,name=iPhone 16' \
             -skipPackagePluginValidation \
             CODE_SIGNING_ALLOWED=NO \
             clean build test | xcbeautify || xcodebuild \
             -project SkipperLogbook.xcodeproj \
             -scheme SkipperLogbook \
-            -destination 'platform=iOS Simulator,name=iPhone 15,OS=17.5' \
+            -destination 'platform=iOS Simulator,name=iPhone 16' \
             CODE_SIGNING_ALLOWED=NO \
             clean build test
 

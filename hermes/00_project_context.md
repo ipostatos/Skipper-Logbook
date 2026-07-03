@@ -37,7 +37,7 @@ solutions over clever abstractions.
   hexes exactly. Typography (SF rounded tabular numerals), Spacing tokens,
   ~20 reusable components.
 - **Tests** — 21 XCTests: navigation math, coordinate formatting, recorder,
-  anchor watch, MOB, seed data. CI on GitHub Actions (macos-14, Xcode 15.4,
+  anchor watch, MOB, seed data. CI on GitHub Actions (macos-15, Xcode 16.x,
   xcodegen → xcodebuild test, SwiftLint).
 - **Docs** — README (with safety disclaimer), SETUP, CHANGELOG, templates.
 
@@ -76,14 +76,16 @@ Fixed in the alignment pass (see `04_mvp_execution_plan.md` for details):
   until a versioned schema is introduced. See `04_mvp_execution_plan.md` §Migrations.
 - **Anchor alarm with the phone locked** needs Always location — the safety
   override keeps fixes flowing only with that permission; the watch sheet says so.
-- **XcodeGen project format** — `options.xcodeVersion` pinned to 15.4 and CI
-  normalizes `objectVersion` to 56; drop both only when moving to Xcode 16+.
+- **Toolchain** — building requires the Xcode 16+ SDK (`View` is `@MainActor`
+  there; view helper members rely on it). CI: macos-15 / Xcode 16.x /
+  iPhone 16 simulator. The objectVersion normalization keeps the generated
+  project readable by older Xcode, but sources won't compile below 16.
 - Dev builds seeded before the `--seed-demo` gate keep their demo data
   (reinstall to reset); no real users existed before the gate.
 - Engine `save()` failures are logged (os.Logger) but not surfaced to the UI.
 - `DashboardReadout.toWaypointSpeedKn` is speed-over-ground, not true VMG
   (self-documented BETA shortcut).
-- CI pins iPhone 15 / iOS 17.5 simulator — will need bumping with new Xcode.
+- CI uses an iPhone 16 simulator without an OS pin (picks the newest runtime).
 
 ### What can be reused (don't reinvent)
 

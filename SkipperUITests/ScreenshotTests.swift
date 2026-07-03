@@ -61,10 +61,15 @@ final class ScreenshotTests: XCTestCase {
         // 3. Logbook Timeline
         step("04-Logbook") { tapTab("log") }
 
-        // 4. Audio Log (from the Logbook toolbar mic button)
+        // 4. Audio Log (from the Logbook toolbar mic button). Give the toolbar a
+        // moment to lay out after the tab switch, then confirm the sheet opened
+        // (its "voice.recent" section / Close button) before capturing.
         step("02-AudioLog") {
             tapTab("log")
+            usleep(600_000)
             tapAny("logbook.audiolog")
+            // Wait for a control that only exists inside the Audio Log sheet.
+            _ = app.navigationBars.buttons.firstMatch.waitForExistence(timeout: 5)
         }
         dismissSheet()
 
@@ -145,5 +150,12 @@ final class ScreenshotTests: XCTestCase {
         attachment.name = name
         attachment.lifetime = .keepAlways
         add(attachment)
+
+        // Diagnostic: attach the on-screen element tree so we can tell exactly
+        // which screen each shot landed on (helps debug any duplicate captures).
+        let tree = XCTAttachment(string: app.debugDescription)
+        tree.name = "\(name)-tree"
+        tree.lifetime = .keepAlways
+        add(tree)
     }
 }

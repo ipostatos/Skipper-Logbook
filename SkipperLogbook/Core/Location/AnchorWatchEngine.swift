@@ -32,6 +32,10 @@ final class AnchorWatchEngine {
     /// watch UI warns when this is false (the lock-screen half of the alarm is
     /// dead in that case).
     private(set) var alarmNotificationsAuthorized: Bool?
+    /// System sound / notification-center calls hang headless CI simulators;
+    /// unit tests assert the logbook + latch logic, not the beep.
+    private static let isRunningTests =
+        ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
 
     init(context: ModelContext) {
         self.context = context
@@ -107,15 +111,18 @@ final class AnchorWatchEngine {
     /// audible alert, local notification (for backgrounded/locked phones), and a
     /// logbook record of the excursion.
     private func fireDragAlarm(at coordinate: GeoCoordinate, distance: Double) {
-        UINotificationFeedbackGenerator().notificationOccurred(.error)
-        AudioServicesPlayAlertSound(SystemSoundID(1005))
-        postDragNotification(distance: distance)
+        if !Self.isRunningTests {
+            UINotificationFeedbackGenerator().notificationOccurred(.error)
+            AudioServicesPlayAlertSound(SystemSoundID(1005))
+            postDragNotification(distance: distance)
+        }
         LogEvent.record(.anchorAlarm, in: context, at: coordinate,
                         note: String(localized: "anchor.drag_alarm_note"))
         log.warning("Anchor drag alarm at \(Int(distance)) m")
     }
 
     private func requestAlarmAuthorization() {
+        guard !Self.isRunningTests else { return }
         UNUserNotificationCenter.current()
             .requestAuthorization(options: [.alert, .sound]) { granted, _ in
                 Task { @MainActor in

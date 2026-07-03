@@ -7,8 +7,15 @@ import SwiftData
 @MainActor
 final class ExportAndSafetyLoggingTests: XCTestCase {
 
+    /// Keeps the in-memory container alive for the test's duration —
+    /// `mainContext` alone does not guarantee the container is retained.
+    /// (XCTest creates one instance per test method, so this is per-test.)
+    private var container: ModelContainer?
+
     private func makeContext() -> ModelContext {
-        PersistenceController.makeInMemoryContainer().mainContext
+        let container = PersistenceController.makeInMemoryContainer()
+        self.container = container
+        return container.mainContext
     }
 
     // MARK: Export — CSV

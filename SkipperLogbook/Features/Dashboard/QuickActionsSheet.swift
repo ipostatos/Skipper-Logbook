@@ -11,6 +11,8 @@ struct QuickActionsSheet: View {
     @Environment(VoyageRecorder.self) private var recorder
     @Environment(MOBEngine.self) private var mob
 
+    @State private var mobNoFix = false
+
     private let columns = Array(repeating: GridItem(.flexible(), spacing: Spacing.sm), count: 3)
 
     var body: some View {
@@ -39,7 +41,8 @@ struct QuickActionsSheet: View {
                     if recorder.isRecording { recorder.stopVoyage(); dismiss() }
                     else { dismiss(); router.present(.newVoyage) }
                 }
-                QuickActionButton(symbol: "exclamationmark.triangle.fill", title: "action.mob", isDanger: true) {
+                QuickActionButton(symbol: "exclamationmark.triangle.fill", title: "action.mob",
+                                  isDanger: true, requiresHold: true) {
                     triggerMOB()
                 }
             }
@@ -47,16 +50,17 @@ struct QuickActionsSheet: View {
         }
         .padding(.horizontal, Spacing.pageMargin)
         .background(theme.background)
+        .alert("mob.no_fix_title", isPresented: $mobNoFix) {
+            Button("common.ok", role: .cancel) {}
+        } message: { Text("mob.no_fix_message") }
     }
 
     private func triggerMOB() {
-        if let coord = location.currentCoordinate {
-            mob.trigger(at: coord,
-                        speedKn: Units.mpsToKnots(location.speedMps),
-                        heading: location.effectiveHeading)
+        if mob.trigger(from: location) {
+            dismiss(); router.presentMOB()
+        } else {
+            mobNoFix = true   // keep the sheet up so the alert can explain
         }
-        UINotificationFeedbackGenerator().notificationOccurred(.warning)
-        dismiss(); router.presentMOB()
     }
 
     private func toggleEngine() {

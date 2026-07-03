@@ -9,8 +9,7 @@ struct VoyageDetailView: View {
     @Environment(\.modelContext) private var context
     let voyageID: PersistentIdentifier
 
-    @State private var csvURL: URL?
-    @State private var gpxURL: URL?
+    @State private var exportItem: ExportItem?
 
     private var voyage: Voyage? { context.model(for: voyageID) as? Voyage }
 
@@ -34,17 +33,19 @@ struct VoyageDetailView: View {
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                if csvURL != nil || gpxURL != nil {
+                // Files are generated at tap time, so a still-recording voyage
+                // exports its current state, never a view-appear snapshot.
+                if let voyage {
                     Menu {
-                        if let csvURL {
-                            ShareLink(item: csvURL) {
-                                Label("voyage.export_csv", systemImage: "tablecells")
-                            }
+                        Button {
+                            exportItem = (try? ExportService.writeCSV(for: voyage)).map(ExportItem.init)
+                        } label: {
+                            Label("voyage.export_csv", systemImage: "tablecells")
                         }
-                        if let gpxURL {
-                            ShareLink(item: gpxURL) {
-                                Label("voyage.export_gpx", systemImage: "map")
-                            }
+                        Button {
+                            exportItem = (try? ExportService.writeGPX(for: voyage)).map(ExportItem.init)
+                        } label: {
+                            Label("voyage.export_gpx", systemImage: "map")
                         }
                     } label: {
                         Image(systemName: "square.and.arrow.up")
@@ -52,10 +53,8 @@ struct VoyageDetailView: View {
                 }
             }
         }
-        .task(id: voyageID) {
-            guard let voyage else { return }
-            csvURL = try? ExportService.writeCSV(for: voyage)
-            gpxURL = try? ExportService.writeGPX(for: voyage)
+        .sheet(item: $exportItem) { item in
+            ShareSheet(items: [item.url])
         }
     }
 
@@ -111,4 +110,22 @@ struct VoyageDetailView: View {
             }
         }
     }
+}
+
+/// Identifiable wrapper so `.sheet(item:)` can present a freshly written file.
+private struct ExportItem: Identifiable {
+    let url: URL
+    var id: String { url.absoluteString }
+}
+
+/// Thin UIKit bridge — `ShareLink` needs its URL up front, but we only want to
+/// build the file when the user actually asks for it.
+private struct ShareSheet: UIViewControllerRepresentable {
+    let items: [Any]
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: items, applicationActivities: nil)
+    }
+
+    func updateUIViewController(_ controller: UIActivityViewController, context: Context) {}
 }

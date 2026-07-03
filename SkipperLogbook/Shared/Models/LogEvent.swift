@@ -69,6 +69,29 @@ final class LogEvent {
 
     var hasSailState: Bool { mainsailPercent != nil || jibPercent != nil }
 
+    /// Inserts a logbook entry attached to the currently-recording voyage (if
+    /// any). The single writer shared by the safety engines, so every entry
+    /// point logs identically — new fields are threaded through one place.
+    @discardableResult
+    static func record(_ type: LogEventType,
+                       in context: ModelContext,
+                       at coordinate: GeoCoordinate? = nil,
+                       heading: Double? = nil,
+                       speedKn: Double? = nil,
+                       note: String? = nil) -> LogEvent {
+        let voyage = Voyage.recording(in: context)
+        let event = LogEvent(type: type,
+                             latitude: coordinate?.latitude,
+                             longitude: coordinate?.longitude,
+                             headingDegrees: heading,
+                             speedKnots: speedKn,
+                             legDistanceNM: voyage?.distanceNM,
+                             note: note)
+        event.voyage = voyage
+        context.insert(event)
+        return event
+    }
+
     var hasWind: Bool { windSpeedKn != nil || (windDirection?.isEmpty == false) }
 
     /// "CEE 20kn" style wind summary if present.

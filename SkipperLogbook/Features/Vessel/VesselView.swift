@@ -20,7 +20,7 @@ struct VesselView: View {
                     photo(vessel)
                     header(vessel)
                     specTable(vessel)
-                    if !vessel.notes.isEmpty { notesCard(vessel) }
+                    if let notes = vessel.notes, !notes.isEmpty { notesCard(notes) }
                     links
                 }
                 .padding(.horizontal, Spacing.pageMargin)
@@ -90,11 +90,11 @@ struct VesselView: View {
         }
     }
 
-    private func notesCard(_ vessel: Vessel) -> some View {
+    private func notesCard(_ notes: String) -> some View {
         Card {
             VStack(alignment: .leading, spacing: Spacing.xs) {
                 SectionHeader("vessel.notes")
-                Text(vessel.notes).font(AppFont.subheadline).foregroundStyle(theme.ink)
+                Text(notes).font(AppFont.subheadline).foregroundStyle(theme.ink)
             }
         }
     }

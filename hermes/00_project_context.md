@@ -72,8 +72,14 @@ Fixed in the alignment pass (see `04_mvp_execution_plan.md` for details):
 
 - **SwiftData migrations** — no `VersionedSchema`/`SchemaMigrationPlan`;
   `PersistenceController` `fatalError`s on container failure. All model changes
-  MUST stay lightweight-migratable (additive, optional or defaulted properties)
+  MUST stay lightweight-migratable (additive, **optional** properties only)
   until a versioned schema is introduced. See `04_mvp_execution_plan.md` §Migrations.
+- **Anchor alarm with the phone locked** needs Always location — the safety
+  override keeps fixes flowing only with that permission; the watch sheet says so.
+- **XcodeGen project format** — `options.xcodeVersion` pinned to 15.4 and CI
+  normalizes `objectVersion` to 56; drop both only when moving to Xcode 16+.
+- Dev builds seeded before the `--seed-demo` gate keep their demo data
+  (reinstall to reset); no real users existed before the gate.
 - Engine `save()` failures are logged (os.Logger) but not surfaced to the UI.
 - `DashboardReadout.toWaypointSpeedKn` is speed-over-ground, not true VMG
   (self-documented BETA shortcut).

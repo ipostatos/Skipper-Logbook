@@ -16,16 +16,24 @@ final class LocationManager: NSObject, CLLocationManagerDelegate {
     private(set) var permission: LocationPermission = .notDetermined
     private(set) var isUpdating = false
 
-    /// User toggle: keep tracking when app is backgrounded. Only honoured when
-    /// `always` authorization + the background capability are present; enabling
-    /// it asks for the always-authorization upgrade when we only have less.
+    /// User toggle: keep tracking when app is backgrounded. Persisted, and only
+    /// honoured when `always` authorization + the background capability are
+    /// present; enabling it asks for the always-authorization upgrade.
     var allowsBackground = false {
         didSet {
+            UserDefaults.standard.set(allowsBackground, forKey: Keys.background)
             if allowsBackground, permission == .whenInUse || permission == .notDetermined {
                 requestAlways()
             }
             applyBackgroundSetting()
         }
+    }
+
+    /// Safety engines (active anchor watch / MOB) keep background updates on
+    /// while they run, independent of the user toggle — an anchor alarm that
+    /// stops with the screen is decoration. Honoured only with Always auth.
+    var safetyBackgroundOverride = false {
+        didSet { applyBackgroundSetting() }
     }
 
     /// True while the toggle is on but iOS hasn't granted Always authorization —
@@ -36,6 +44,10 @@ final class LocationManager: NSObject, CLLocationManagerDelegate {
 
     private let manager = CLLocationManager()
 
+    private enum Keys {
+        static let background = "settings.backgroundTracking"
+    }
+
     override init() {
         super.init()
         manager.delegate = self
@@ -43,6 +55,9 @@ final class LocationManager: NSObject, CLLocationManagerDelegate {
         manager.activityType = .otherNavigation
         manager.distanceFilter = 5
         permission = LocationPermission(manager.authorizationStatus)
+        // Direct assignment in init doesn't fire didSet — no permission prompt
+        // at launch; the delegate's authorization callback applies the setting.
+        allowsBackground = UserDefaults.standard.bool(forKey: Keys.background)
     }
 
     var currentCoordinate: GeoCoordinate? {
@@ -88,8 +103,9 @@ final class LocationManager: NSObject, CLLocationManagerDelegate {
     private func applyBackgroundSetting() {
         // Setting this true without the capability + always-auth throws, so guard.
         guard permission == .always else { return }
-        manager.allowsBackgroundLocationUpdates = allowsBackground
-        manager.pausesLocationUpdatesAutomatically = !allowsBackground
+        let enabled = allowsBackground || safetyBackgroundOverride
+        manager.allowsBackgroundLocationUpdates = enabled
+        manager.pausesLocationUpdatesAutomatically = !enabled
     }
 
     // MARK: CLLocationManagerDelegate

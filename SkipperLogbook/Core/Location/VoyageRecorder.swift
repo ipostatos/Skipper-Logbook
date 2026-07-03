@@ -142,6 +142,22 @@ final class VoyageRecorder {
         return event
     }
 
+    /// Sets or moves the active voyage's destination waypoint, logs the turn,
+    /// and persists — the one place the waypoint rules live, whatever screen
+    /// sets it.
+    func setDestination(_ coordinate: GeoCoordinate, name: String? = nil,
+                        from current: GeoCoordinate? = nil, heading: Double? = nil) {
+        guard let voyage = activeVoyage else { return }
+        voyage.destinationLat = coordinate.latitude
+        voyage.destinationLon = coordinate.longitude
+        if let name {
+            voyage.destinationName = name
+        } else if voyage.destinationName == nil {
+            voyage.destinationName = String(localized: "map.waypoint")
+        }
+        addEvent(.turnToWaypoint, at: current, heading: heading) // also saves
+    }
+
     // MARK: Derived live values
 
     func remainingDistanceMeters(from coordinate: GeoCoordinate?) -> Double? {

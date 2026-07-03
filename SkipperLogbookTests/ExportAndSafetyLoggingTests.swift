@@ -76,8 +76,20 @@ final class ExportAndSafetyLoggingTests: XCTestCase {
         mob.resolve()
         let points = try context.fetch(FetchDescriptor<MOBPoint>())
         XCTAssertTrue(points.allSatisfy { $0.resolved })
-        let resolveNotes = try context.fetch(FetchDescriptor<LogEvent>()).filter { $0.type == .note }
-        XCTAssertEqual(resolveNotes.count, 1)
+        let resolved = try context.fetch(FetchDescriptor<LogEvent>()).filter { $0.type == .mobResolved }
+        XCTAssertEqual(resolved.count, 1)
+    }
+
+    func testMOBRetriggerKeepsOriginalIncident() throws {
+        let context = makeContext()
+        let mob = MOBEngine(context: context)
+        let first = mob.trigger(at: GeoCoordinate(latitude: 43, longitude: 5))
+        let second = mob.trigger(at: GeoCoordinate(latitude: 44, longitude: 6))
+
+        XCTAssertTrue(first === second)   // same incident, original position kept
+        XCTAssertEqual(try context.fetch(FetchDescriptor<MOBPoint>()).count, 1)
+        let mobEvents = try context.fetch(FetchDescriptor<LogEvent>()).filter { $0.type == .mob }
+        XCTAssertEqual(mobEvents.count, 1)   // no duplicate logbook entry
     }
 
     func testMOBTriggerLogsWithoutActiveVoyage() throws {
@@ -106,7 +118,7 @@ final class ExportAndSafetyLoggingTests: XCTestCase {
         engine.ingest(NavigationMath.destination(from: anchor, bearingDegrees: 0, distanceMeters: 30))
         XCTAssertTrue(engine.isDragging)
         events = try context.fetch(FetchDescriptor<LogEvent>())
-        XCTAssertEqual(events.filter { $0.type == .note }.count, 1)
+        XCTAssertEqual(events.filter { $0.type == .anchorAlarm }.count, 1)
 
         engine.stop()
         events = try context.fetch(FetchDescriptor<LogEvent>())

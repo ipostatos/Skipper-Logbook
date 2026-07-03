@@ -1,18 +1,26 @@
 import SwiftUI
 import SwiftData
 
+/// Fetches only the latest weather observations instead of materializing the
+/// whole event table on every render.
+private let weatherFetch: FetchDescriptor<LogEvent> = {
+    let weatherRaw = LogEventType.weather.rawValue
+    var descriptor = FetchDescriptor<LogEvent>(
+        predicate: #Predicate { $0.typeRaw == weatherRaw },
+        sortBy: [SortDescriptor(\.timestamp, order: .reverse)]
+    )
+    descriptor.fetchLimit = 20
+    return descriptor
+}()
+
 /// Weather — honest MVP: manual observations recorded into the logbook (wind,
 /// free-text), listed here. Live forecast and tides are labeled Coming soon
 /// until a real data source ships — nothing on this screen fakes live data.
 struct WeatherView: View {
     @Environment(\.appTheme) private var theme
 
-    @Query(sort: \LogEvent.timestamp, order: .reverse) private var allEvents: [LogEvent]
+    @Query(weatherFetch, animation: .default) private var observations: [LogEvent]
     @State private var showLogWeather = false
-
-    private var observations: [LogEvent] {
-        Array(allEvents.filter { $0.type == .weather }.prefix(20))
-    }
 
     var body: some View {
         ScrollView {

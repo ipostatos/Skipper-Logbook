@@ -28,6 +28,10 @@ final class AnchorWatchEngine {
     /// Latched after the alarm fires; resets once the boat is safely back inside
     /// (80% of the radius) so boundary jitter can't re-fire it continuously.
     private var alarmLatched = false
+    /// nil until the user has answered the notification-permission prompt; the
+    /// watch UI warns when this is false (the lock-screen half of the alarm is
+    /// dead in that case).
+    private(set) var alarmNotificationsAuthorized: Bool?
 
     init(context: ModelContext) {
         self.context = context
@@ -54,7 +58,7 @@ final class AnchorWatchEngine {
         currentDistanceMeters = 0
         isDragging = false
         alarmLatched = false
-        logToLogbook(.anchorDown, at: anchor)
+        LogEvent.record(.anchorDown, in: context, at: anchor)
         save()
         requestAlarmAuthorization()
     }
@@ -67,7 +71,7 @@ final class AnchorWatchEngine {
         trail = []
         isDragging = false
         alarmLatched = false
-        logToLogbook(.anchorUp, at: s.anchor)
+        LogEvent.record(.anchorUp, in: context, at: s.anchor)
         save()
     }
 
@@ -106,38 +110,29 @@ final class AnchorWatchEngine {
         UINotificationFeedbackGenerator().notificationOccurred(.error)
         AudioServicesPlayAlertSound(SystemSoundID(1005))
         postDragNotification(distance: distance)
-        logToLogbook(.note, at: coordinate,
-                     note: String(localized: "anchor.drag_alarm_note"))
+        LogEvent.record(.anchorAlarm, in: context, at: coordinate,
+                        note: String(localized: "anchor.drag_alarm_note"))
         log.warning("Anchor drag alarm at \(Int(distance)) m")
     }
 
     private func requestAlarmAuthorization() {
         UNUserNotificationCenter.current()
-            .requestAuthorization(options: [.alert, .sound]) { _, _ in }
+            .requestAuthorization(options: [.alert, .sound]) { granted, _ in
+                Task { @MainActor in
+                    self.alarmNotificationsAuthorized = granted
+                }
+            }
     }
 
     private func postDragNotification(distance: Double) {
         let content = UNMutableNotificationContent()
         content.title = String(localized: "anchor.alarm_title")
-        content.body = String(localized: "anchor.alarm_body \(Int(distance))")
+        // Explicit format lookup — unambiguous against the catalog key.
+        content.body = String(format: String(localized: "anchor.alarm_body"), Int(distance))
         content.sound = .default
         let request = UNNotificationRequest(identifier: "anchor.drag",
                                             content: content, trigger: nil)
         UNUserNotificationCenter.current().add(request)
-    }
-
-    // MARK: Logbook
-
-    private func logToLogbook(_ type: LogEventType, at coordinate: GeoCoordinate?,
-                              note: String? = nil) {
-        let voyage = Voyage.recording(in: context)
-        let event = LogEvent(type: type,
-                             latitude: coordinate?.latitude,
-                             longitude: coordinate?.longitude,
-                             legDistanceNM: voyage?.distanceNM,
-                             note: note)
-        event.voyage = voyage
-        context.insert(event)
     }
 
     private func save() {

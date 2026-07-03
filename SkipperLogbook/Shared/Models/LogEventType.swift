@@ -14,8 +14,10 @@ enum LogEventType: String, Codable, CaseIterable, Identifiable {
     case waypointReached
     case anchorDown
     case anchorUp
+    case anchorAlarm       // drag alarm fired — boat left the alarm radius
     case weather           // wind / weather observation
     case mob
+    case mobResolved       // person recovered / incident closed
     case note              // free-text / voice-linked note
     case custom
 
@@ -34,8 +36,10 @@ enum LogEventType: String, Codable, CaseIterable, Identifiable {
         case .waypointReached: return "event.waypoint_reached"
         case .anchorDown:      return "event.anchor_down"
         case .anchorUp:        return "event.anchor_up"
+        case .anchorAlarm:     return "event.anchor_alarm"
         case .weather:         return "event.weather"
         case .mob:             return "event.mob"
+        case .mobResolved:     return "event.mob_resolved"
         case .note:            return "event.note"
         case .custom:          return "event.custom"
         }
@@ -54,8 +58,10 @@ enum LogEventType: String, Codable, CaseIterable, Identifiable {
         case .waypointReached: return "flag.checkered"
         case .anchorDown:      return "anchor.fill"
         case .anchorUp:        return "anchor"
+        case .anchorAlarm:     return "exclamationmark.triangle.fill"
         case .weather:         return "wind"
         case .mob:             return "figure.wave"
+        case .mobResolved:     return "checkmark.circle"
         case .note:            return "note.text"
         case .custom:          return "circle"
         }
@@ -69,7 +75,8 @@ enum LogEventType: String, Codable, CaseIterable, Identifiable {
         case .engineOn:                    return .success
         case .engineOff, .anchorUp:        return .ink
         case .sailsUp, .reef:              return .sail
-        case .mob:                         return .danger
+        case .mob, .anchorAlarm:           return .danger
+        case .mobResolved:                 return .success
         case .turnToWaypoint, .waypointReached, .startTrack, .startLogging:
             return .accent
         default:                           return .ink

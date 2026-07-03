@@ -11,6 +11,8 @@ struct SafetyView: View {
 
     @Query(sort: \MOBPoint.timestamp, order: .reverse) private var mobPoints: [MOBPoint]
 
+    @State private var mobNoFix = false
+
     private var lastMOB: MOBPoint? { mobPoints.first }
 
     var body: some View {
@@ -31,6 +33,9 @@ struct SafetyView: View {
         .background(theme.background)
         .navigationTitle("safety.title")
         .navigationBarTitleDisplayMode(.large)
+        .alert("mob.no_fix_title", isPresented: $mobNoFix) {
+            Button("common.ok", role: .cancel) {}
+        } message: { Text("mob.no_fix_message") }
     }
 
     private func lastMOBCard(_ point: MOBPoint) -> some View {
@@ -81,13 +86,11 @@ struct SafetyView: View {
     }
 
     private func triggerMOB() {
-        if let coord = location.currentCoordinate {
-            mob.trigger(at: coord,
-                        speedKn: Units.mpsToKnots(location.speedMps),
-                        heading: location.effectiveHeading)
+        if mob.trigger(from: location) {
+            router.presentMOB()
+        } else {
+            mobNoFix = true
         }
-        UINotificationFeedbackGenerator().notificationOccurred(.warning)
-        router.presentMOB()
     }
 
     private func distanceString(to point: MOBPoint) -> String {
@@ -110,7 +113,10 @@ struct MOBButton: View {
 
     @State private var progress: CGFloat = 0
     @State private var isPressing = false
-    private let holdDuration: TimeInterval = 0.7
+    /// One activation hold time for every MOB control in the app (the compact
+    /// map button reuses it) — tune glove-friendliness in one place.
+    static let holdDuration: TimeInterval = 0.7
+    private var holdDuration: TimeInterval { Self.holdDuration }
 
     var body: some View {
         ZStack {

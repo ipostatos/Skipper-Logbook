@@ -19,6 +19,7 @@ struct MapView: View {
     /// Add-waypoint mode: the next tap on the chart sets the active voyage's
     /// destination. Only offered while a voyage is recording.
     @State private var settingWaypoint = false
+    @State private var mobNoFix = false
 
     private var voyage: Voyage? { recorder.activeVoyage ?? voyages.first }
     private var track: [CLLocationCoordinate2D] {
@@ -89,6 +90,9 @@ struct MapView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .navigationBar)
         .onAppear(perform: recenter)
+        .alert("mob.no_fix_title", isPresented: $mobNoFix) {
+            Button("common.ok", role: .cancel) {}
+        } message: { Text("mob.no_fix_message") }
     }
 
     private var waypointDot: some View {
@@ -160,7 +164,7 @@ struct MapView: View {
         }
         .cardShadow(theme)
         .contentShape(Circle())
-        .onLongPressGesture(minimumDuration: 0.7) { triggerMOB() }
+        .onLongPressGesture(minimumDuration: MOBButton.holdDuration) { triggerMOB() }
         .accessibilityLabel("Man overboard")
         .accessibilityHint(Text("safety.press_hold"))
     }
@@ -183,30 +187,20 @@ struct MapView: View {
     // MARK: Actions
 
     private func setWaypoint(_ coordinate: GeoCoordinate) {
-        guard coordinate.isValid, let voyage = recorder.activeVoyage else {
-            settingWaypoint = false
-            return
-        }
-        voyage.destinationLat = coordinate.latitude
-        voyage.destinationLon = coordinate.longitude
-        if voyage.destinationName == nil {
-            voyage.destinationName = String(localized: "map.waypoint")
-        }
-        // An active voyage is always recording, so this both logs and saves.
-        recorder.addEvent(.turnToWaypoint, at: location.currentCoordinate,
-                          heading: location.effectiveHeading)
         settingWaypoint = false
+        guard coordinate.isValid else { return }
+        recorder.setDestination(coordinate,
+                                from: location.currentCoordinate,
+                                heading: location.effectiveHeading)
         UINotificationFeedbackGenerator().notificationOccurred(.success)
     }
 
     private func triggerMOB() {
-        if let coord = location.currentCoordinate {
-            mob.trigger(at: coord,
-                        speedKn: Units.mpsToKnots(location.speedMps),
-                        heading: location.effectiveHeading)
+        if mob.trigger(from: location) {
+            router.presentMOB()
+        } else {
+            mobNoFix = true
         }
-        UINotificationFeedbackGenerator().notificationOccurred(.warning)
-        router.presentMOB()
     }
 
     private func recenter() {

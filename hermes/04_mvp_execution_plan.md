@@ -27,6 +27,28 @@ Ordered by dependency; each item lists its acceptance criterion.
 | 15 | CI runs on `claude/**` branches too | `.github/workflows/ci.yml` | Push to feature branch triggers build+test | ✅ |
 | 16 | Docs: README/CHANGELOG reflect reality; Hermes folder committed | root, `hermes/` | This folder + updated docs in repo | ✅ |
 
+## Review pass (adversarial code review of the alignment diff)
+
+Applied on top of the alignment pass:
+
+| # | Fix | Status |
+|---|---|---|
+| R1 | MOB with no GPS fix: log the time, alert instead of empty search screen; `trigger(from:)` returns whether a point armed | ✅ |
+| R2 | All MOB entry points hold-to-activate (`MOBButton.holdDuration` shared) | ✅ |
+| R3 | Re-trigger while active keeps original incident (no duplicate point/entry) | ✅ |
+| R4 | New `.mobResolved` / `.anchorAlarm` event types + Safety filter coverage | ✅ |
+| R5 | `allowsBackground` persisted; safety engines force background location while active (Always auth); notification-denied warning + lock-screen hint on the watch sheet | ✅ |
+| R6 | Exports generated at share time into unique dirs (no stale snapshot / name collisions); `ShareSheet` bridge | ✅ |
+| R7 | Voice note stores COG not heading; timeline search matches tags/transcript | ✅ |
+| R8 | Model additions made optional (`tagsRaw`, `notes`) — guaranteed-lightweight migration | ✅ |
+| R9 | Shared `LogEvent.record` + `recorder.setDestination`; dead `AppState.anchorDown` / `isPDFAvailable` removed; Weather query predicated + limited | ✅ |
+| R10 | CI: XcodeGen `xcodeVersion` pin + objectVersion normalize + `SWIFT_VERSION: 5.0` | ✅ |
+
+Deferred cleanups (next milestone): generalize PermissionCard for the
+icon+text+button card pattern (WeatherView.manualCard, Today.anchoredCard);
+a shared `SelectableChip` for AudioLog tags + Logbook filters; ComingSoon badge
+placement on Form rows (screenshot check).
+
 ## Migrations policy (critical, read before touching models)
 
 There is no `VersionedSchema` yet. Until one exists:

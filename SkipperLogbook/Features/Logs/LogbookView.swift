@@ -41,7 +41,12 @@ struct LogbookView: View {
         var items = filteredEvents.map(TimelineItem.event)
         if filter == .all {
             let q = searchText.lowercased()
-            let notes = voiceNotes.filter { q.isEmpty || $0.title.lowercased().contains(q) }
+            let notes = voiceNotes.filter {
+                q.isEmpty
+                    || $0.title.lowercased().contains(q)
+                    || ($0.tagsRaw ?? "").lowercased().contains(q)
+                    || ($0.transcript?.lowercased().contains(q) ?? false)
+            }
             items.append(contentsOf: notes.map(TimelineItem.voice))
         }
         return items.sorted { $0.timestamp > $1.timestamp }
@@ -227,7 +232,8 @@ enum LogFilter: String, CaseIterable, Identifiable {
         case .navigation: return [.startTrack, .startLogging, .turnToWaypoint, .waypointReached].contains(type)
         case .engine: return [.engineOn, .engineOff].contains(type)
         case .sails:  return [.sailsUp, .sailsDown, .reef].contains(type)
-        case .safety: return [.mob, .anchorDown, .anchorUp, .weather].contains(type)
+        case .safety:
+            return [.mob, .mobResolved, .anchorDown, .anchorUp, .anchorAlarm, .weather].contains(type)
         case .audio:  return false
         }
     }

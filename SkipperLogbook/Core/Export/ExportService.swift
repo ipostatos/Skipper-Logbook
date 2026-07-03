@@ -1,16 +1,9 @@
 import Foundation
 
-enum ExportError: Error {
-    case notImplemented
-}
-
 /// Voyage export. CSV (one row per log entry) and GPX 1.1 (waypoints + the
 /// recorded track) are real and shared from the voyage detail screen. PDF is
 /// still Coming soon — its buttons stay disabled, no fake implementation.
 enum ExportService {
-
-    /// PDF export is not implemented yet; Settings keeps that row disabled.
-    static let isPDFAvailable = false
 
     // MARK: CSV
 
@@ -19,7 +12,7 @@ enum ExportService {
     static func csv(for voyage: Voyage) -> String {
         var lines = ["timestamp,event,latitude,longitude,course_deg,speed_kn,distance_nm,wind,mainsail_pct,jib_pct,note"]
         let iso = ISO8601DateFormatter()
-        for e in voyage.events.sorted(by: { $0.timestamp < $1.timestamp }) {
+        for e in voyage.chronologicalEvents {
             let fields: [String] = [
                 iso.string(from: e.timestamp),
                 e.type.rawValue,
@@ -59,7 +52,7 @@ enum ExportService {
             out += "  <wpt lat=\"\(dest.latitude)\" lon=\"\(dest.longitude)\">"
             out += "<name>\(xmlEscape(voyage.destinationName ?? "Waypoint"))</name></wpt>\n"
         }
-        for e in voyage.events.sorted(by: { $0.timestamp < $1.timestamp }) {
+        for e in voyage.chronologicalEvents {
             guard let lat = e.latitude, let lon = e.longitude else { continue }
             out += "  <wpt lat=\"\(lat)\" lon=\"\(lon)\">"
             out += "<time>\(iso.string(from: e.timestamp))</time>"
@@ -104,8 +97,11 @@ enum ExportService {
     }
 
     private static func write(_ content: String, name: String) throws -> URL {
+        // A unique directory per write: same-named voyages can't clobber each
+        // other's file while a share sheet still points at it.
         let dir = FileManager.default.temporaryDirectory
             .appendingPathComponent("Exports", isDirectory: true)
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let url = dir.appendingPathComponent(name)
         try content.write(to: url, atomically: true, encoding: .utf8)

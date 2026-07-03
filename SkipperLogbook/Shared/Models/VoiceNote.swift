@@ -44,8 +44,9 @@ final class VoiceNote {
     var longitude: Double?
     var speedKnots: Double?
     var courseDegrees: Double?
-    /// Comma-joined `VoiceTag` raw values (SwiftData-friendly storage).
-    var tagsRaw: String = ""
+    /// Comma-joined `VoiceTag` raw values. Optional because adding an optional
+    /// attribute is the only guaranteed-lightweight SwiftData migration.
+    var tagsRaw: String?
 
     var voyage: Voyage?
 
@@ -70,11 +71,11 @@ final class VoiceNote {
         self.longitude = longitude
         self.speedKnots = speedKnots
         self.courseDegrees = courseDegrees
-        self.tagsRaw = tags.map(\.rawValue).joined(separator: ",")
+        self.tagsRaw = tags.isEmpty ? nil : tags.map(\.rawValue).joined(separator: ",")
     }
 
     var tags: [VoiceTag] {
-        get { tagsRaw.split(separator: ",").compactMap { VoiceTag(rawValue: String($0)) } }
-        set { tagsRaw = newValue.map(\.rawValue).joined(separator: ",") }
+        get { (tagsRaw ?? "").split(separator: ",").compactMap { VoiceTag(rawValue: String($0)) } }
+        set { tagsRaw = newValue.isEmpty ? nil : newValue.map(\.rawValue).joined(separator: ",") }
     }
 }

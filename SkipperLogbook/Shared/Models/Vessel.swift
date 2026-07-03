@@ -24,8 +24,9 @@ final class Vessel {
     var engineModel: String?
     var fuelCapacityLiters: Double?
     var waterCapacityLiters: Double?
-    /// Free-form captain's notes about the boat.
-    var notes: String = ""
+    /// Free-form captain's notes about the boat. Optional because adding an
+    /// optional attribute is the only guaranteed-lightweight SwiftData migration.
+    var notes: String?
 
     var createdAt: Date
 
@@ -55,7 +56,7 @@ final class Vessel {
         engineModel: String? = nil,
         fuelCapacityLiters: Double? = nil,
         waterCapacityLiters: Double? = nil,
-        notes: String = "",
+        notes: String? = nil,
         createdAt: Date = .now
     ) {
         self.name = name

@@ -36,6 +36,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Unit-system picker no longer pretends to work (disabled + Coming soon until real).
 - "Transcribe later" tile in Audio Log is now labeled Coming soon.
+- **MOB without a GPS fix** now still records the incident time in the logbook and
+  explains the missing position instead of opening an empty search screen.
+- **All MOB controls are hold-to-activate** (Today card and Quick Actions tile
+  included) with one shared hold duration — no accidental tap can fire an MOB.
+- Re-triggering MOB while one is active keeps the original point and writes no
+  duplicate logbook entry.
+- New `MOB resolved` and `Anchor drag alarm` event types — the Logbook's Safety
+  filter now shows the full incident timeline.
+- Background-tracking preference persists across launches; while an anchor watch
+  or MOB is active, background location stays on regardless of the toggle (with
+  Always access), and the watch screen warns when notifications are denied.
+- Voyage exports are generated at share time (never a stale view-appear snapshot)
+  into unique paths, so same-named voyages can't overwrite each other.
+- Voice notes store true course over ground (not heading) and are searchable by
+  their tags.
+- CI: pinned the XcodeGen project format for Xcode 15.x and corrected
+  `SWIFT_VERSION` to a valid language mode (5.0).
 
 ## [0.9.0] — 2026-07-03 · BETA
 

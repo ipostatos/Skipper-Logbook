@@ -42,40 +42,50 @@ struct PrimaryButton: View {
 }
 
 /// A small quick-action tile (Event / Engine / Sails / MOB) used in the
-/// dashboard's Quick Actions row and the + sheet.
+/// dashboard's Quick Actions row and the + sheet. `requiresHold` swaps the tap
+/// for a long press — emergency tiles must not fire on an accidental touch.
 struct QuickActionButton: View {
     @Environment(\.appTheme) private var theme
 
     let symbol: String
     let title: LocalizedStringKey
     var isDanger: Bool = false
+    var requiresHold: Bool = false
     let action: () -> Void
 
     var body: some View {
-        Button(action: action) {
-            VStack(spacing: 8) {
-                Image(systemName: symbol)
-                    .font(.system(size: 20, weight: .medium))
-                    .foregroundStyle(isDanger ? theme.danger : theme.accent)
-                Text(title)
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(theme.inkSecondary)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.center)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, Spacing.md)
-            .background(
-                RoundedRectangle(cornerRadius: theme.cornerRadiusSmall, style: .continuous)
-                    .fill(theme.surface)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: theme.cornerRadiusSmall, style: .continuous)
-                            .strokeBorder(isDanger ? theme.danger.opacity(0.4) : theme.hairline,
-                                          lineWidth: theme.isDark ? 1 : 0.5)
-                    )
-            )
+        if requiresHold {
+            label
+                .contentShape(Rectangle())
+                .onLongPressGesture(minimumDuration: MOBButton.holdDuration, perform: action)
+        } else {
+            Button(action: action) { label }
+                .buttonStyle(.plain)
         }
-        .buttonStyle(.plain)
+    }
+
+    private var label: some View {
+        VStack(spacing: 8) {
+            Image(systemName: symbol)
+                .font(.system(size: 20, weight: .medium))
+                .foregroundStyle(isDanger ? theme.danger : theme.accent)
+            Text(title)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(theme.inkSecondary)
+                .lineLimit(2)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, Spacing.md)
+        .background(
+            RoundedRectangle(cornerRadius: theme.cornerRadiusSmall, style: .continuous)
+                .fill(theme.surface)
+                .overlay(
+                    RoundedRectangle(cornerRadius: theme.cornerRadiusSmall, style: .continuous)
+                        .strokeBorder(isDanger ? theme.danger.opacity(0.4) : theme.hairline,
+                                      lineWidth: theme.isDark ? 1 : 0.5)
+                )
+        )
     }
 }
 

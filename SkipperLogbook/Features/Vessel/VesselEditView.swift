@@ -44,7 +44,8 @@ struct VesselEditView: View {
                 }
 
                 Section("vessel.notes") {
-                    TextField("vessel.notes_placeholder", text: $vessel.notes, axis: .vertical)
+                    TextField("vessel.notes_placeholder",
+                              text: Binding.optionalText($vessel.notes), axis: .vertical)
                         .lineLimit(3...6)
                 }
             }

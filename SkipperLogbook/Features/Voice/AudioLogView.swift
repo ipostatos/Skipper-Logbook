@@ -174,7 +174,9 @@ struct AudioLogView: View {
                              duration: result.duration, fileName: result.fileName,
                              latitude: coord?.latitude, longitude: coord?.longitude,
                              speedKnots: coord != nil ? Units.mpsToKnots(location.speedMps) : nil,
-                             courseDegrees: coord != nil ? location.effectiveHeading : nil,
+                             // Course over ground, not effectiveHeading — heading
+                             // is where the bow points, not where the boat goes.
+                             courseDegrees: coord != nil ? location.courseDegrees : nil,
                              tags: VoiceTag.allCases.filter { selectedTags.contains($0) })
         note.voyage = recorder.activeVoyage
         context.insert(note)

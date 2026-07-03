@@ -66,6 +66,12 @@ struct AnchorWatchView: View {
                 UIImpactFeedbackGenerator(style: .rigid).impactOccurred()
             }
             .disabled(location.currentCoordinate == nil)
+
+            // Honest about the limitation: with the screen locked, the alarm
+            // needs Always location; otherwise keep the app open.
+            Text("anchor.background_hint")
+                .font(AppFont.footnote).foregroundStyle(theme.inkSecondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
@@ -106,6 +112,13 @@ struct AnchorWatchView: View {
             Text(String(format: String(localized: "anchor.radius_footer"),
                         Int(engine.session?.radiusMeters ?? radius)))
                 .font(AppFont.footnote).foregroundStyle(theme.inkSecondary)
+
+            if engine.alarmNotificationsAuthorized == false {
+                Label("anchor.notifications_denied", systemImage: "bell.slash")
+                    .font(AppFont.footnote)
+                    .foregroundStyle(theme.warning)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
 
             PrimaryButton(title: "anchor.stop", symbol: "stop.circle", role: .danger) {
                 engine.stop()

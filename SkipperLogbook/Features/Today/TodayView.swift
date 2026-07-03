@@ -18,6 +18,8 @@ struct TodayView: View {
     @Query private var vessels: [Vessel]
     @Query(sort: \Voyage.startedAt, order: .reverse) private var voyages: [Voyage]
 
+    @State private var mobNoFix = false
+
     private var vessel: Vessel? { vessels.first }
     private var recent: [Voyage] { voyages.filter { !$0.isRecording }.prefix(3).map { $0 } }
     private var readout: DashboardReadout {
@@ -56,6 +58,9 @@ struct TodayView: View {
         }
         .background(theme.background)
         .scrollIndicators(.hidden)
+        .alert("mob.no_fix_title", isPresented: $mobNoFix) {
+            Button("common.ok", role: .cancel) {}
+        } message: { Text("mob.no_fix_message") }
     }
 
     // MARK: Header
@@ -248,28 +253,31 @@ struct TodayView: View {
 
     // MARK: MOB card
 
+    /// Hold-to-activate, like every MOB control in the app — an emergency
+    /// trigger must not fire on an accidental tap.
     private var mobCard: some View {
-        Button { triggerMOB() } label: {
-            HStack(spacing: Spacing.sm) {
-                ZStack {
-                    Circle().fill(theme.danger.opacity(0.15)).frame(width: 60, height: 60)
-                    Circle().fill(theme.danger).frame(width: 46, height: 46)
-                    Image(systemName: "figure.wave").foregroundStyle(.white).font(.system(size: 20, weight: .bold))
-                }
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("MOB").font(.system(size: 20, weight: .heavy)).foregroundStyle(theme.danger)
-                    Text("today.mob_hint").font(AppFont.footnote).foregroundStyle(theme.inkSecondary)
-                }
-                Spacer()
-                Image(systemName: "chevron.right").foregroundStyle(theme.danger.opacity(0.6))
+        HStack(spacing: Spacing.sm) {
+            ZStack {
+                Circle().fill(theme.danger.opacity(0.15)).frame(width: 60, height: 60)
+                Circle().fill(theme.danger).frame(width: 46, height: 46)
+                Image(systemName: "figure.wave").foregroundStyle(.white).font(.system(size: 20, weight: .bold))
             }
-            .padding(Spacing.md)
-            .background(
-                RoundedRectangle(cornerRadius: theme.cornerRadius, style: .continuous)
-                    .fill(theme.danger.opacity(0.08))
-            )
+            VStack(alignment: .leading, spacing: 2) {
+                Text("MOB").font(.system(size: 20, weight: .heavy)).foregroundStyle(theme.danger)
+                Text("today.mob_hint").font(AppFont.footnote).foregroundStyle(theme.inkSecondary)
+            }
+            Spacer()
+            Image(systemName: "chevron.right").foregroundStyle(theme.danger.opacity(0.6))
         }
-        .buttonStyle(.plain)
+        .padding(Spacing.md)
+        .background(
+            RoundedRectangle(cornerRadius: theme.cornerRadius, style: .continuous)
+                .fill(theme.danger.opacity(0.08))
+        )
+        .contentShape(RoundedRectangle(cornerRadius: theme.cornerRadius, style: .continuous))
+        .onLongPressGesture(minimumDuration: MOBButton.holdDuration) { triggerMOB() }
+        .accessibilityLabel("Man overboard")
+        .accessibilityHint(Text("safety.press_hold"))
     }
 
     // MARK: Stats grid
@@ -336,14 +344,13 @@ struct TodayView: View {
     // MARK: Actions
 
     private func triggerMOB() {
-        // The engine writes the logbook event, so every MOB path logs once.
-        if let coord = location.currentCoordinate {
-            mob.trigger(at: coord,
-                        speedKn: Units.mpsToKnots(location.speedMps),
-                        heading: location.effectiveHeading)
+        // The engine drops the marker, logs, and haptic-confirms — every MOB
+        // path in the app behaves identically, with or without a GPS fix.
+        if mob.trigger(from: location) {
+            router.presentMOB()
+        } else {
+            mobNoFix = true   // time is logged; explain instead of an empty search
         }
-        UINotificationFeedbackGenerator().notificationOccurred(.warning)
-        router.presentMOB()
     }
 
     private func toggleEngine() {

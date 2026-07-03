@@ -92,6 +92,11 @@ final class Voyage {
     var orderedEvents: [LogEvent] {
         events.sorted { $0.timestamp > $1.timestamp }
     }
+
+    /// Events oldest-first — the order exports and replays want.
+    var chronologicalEvents: [LogEvent] {
+        events.sorted { $0.timestamp < $1.timestamp }
+    }
 }
 
 extension Voyage {

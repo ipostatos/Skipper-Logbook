@@ -52,6 +52,7 @@ jobs:
           xcrun simctl bootstatus "$SIMULATOR" -b || true
 
       - name: Run screenshot UI tests
+        continue-on-error: true    # best-effort; the .app artifact is still built below
         run: |
           set -o pipefail
           xcodebuild test \
@@ -84,6 +85,15 @@ jobs:
           path: screenshots/**
           if-no-files-found: warn
           retention-days: 30
+
+      - name: Upload raw result bundle (for debugging)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xcresult
+          path: build/Screenshots.xcresult
+          if-no-files-found: ignore
+          retention-days: 14
 
       - name: Build simulator .app (Appetize-ready)
         run: |

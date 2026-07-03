@@ -20,6 +20,13 @@ struct AddLogEventSheet: View {
     @State private var jib: Double = 100
     @State private var includeSails = false
 
+    /// Callers can preselect the event type (e.g. the Weather screen opens the
+    /// composer on a weather observation).
+    init(initialType: LogEventType = .note) {
+        _type = State(initialValue: initialType)
+        _includeSails = State(initialValue: initialType.carriesSailState)
+    }
+
     private let selectableTypes: [LogEventType] = [
         .note, .engineOn, .engineOff, .sailsUp, .sailsDown, .reef,
         .turnToWaypoint, .waypointReached, .anchorDown, .anchorUp, .weather

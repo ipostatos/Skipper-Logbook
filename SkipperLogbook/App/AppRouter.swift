@@ -38,6 +38,7 @@ enum AppRoute: Hashable {
     case seasonLog
     case deviation
     case statistics
+    case weather
     case settings
     case voyageDetail(PersistentIDBox)
 }

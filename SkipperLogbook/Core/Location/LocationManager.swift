@@ -17,9 +17,21 @@ final class LocationManager: NSObject, CLLocationManagerDelegate {
     private(set) var isUpdating = false
 
     /// User toggle: keep tracking when app is backgrounded. Only honoured when
-    /// `always` authorization + the background capability are present.
+    /// `always` authorization + the background capability are present; enabling
+    /// it asks for the always-authorization upgrade when we only have less.
     var allowsBackground = false {
-        didSet { applyBackgroundSetting() }
+        didSet {
+            if allowsBackground, permission == .whenInUse || permission == .notDetermined {
+                requestAlways()
+            }
+            applyBackgroundSetting()
+        }
+    }
+
+    /// True while the toggle is on but iOS hasn't granted Always authorization —
+    /// Settings uses it to explain why background tracking isn't active yet.
+    var backgroundUpgradeNeeded: Bool {
+        allowsBackground && permission != .always
     }
 
     private let manager = CLLocationManager()

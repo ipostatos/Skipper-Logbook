@@ -14,6 +14,7 @@ struct AudioLogView: View {
 
     @State private var audio = AudioRecorderController()
     @State private var micDenied = false
+    @State private var selectedTags: Set<VoiceTag> = []
 
     @Query(sort: \VoiceNote.createdAt, order: .reverse) private var notes: [VoiceNote]
 
@@ -70,8 +71,40 @@ struct AudioLogView: View {
                     Text(CoordinateFormatting.string(coord))
                         .font(AppFont.mono(.footnote)).foregroundStyle(theme.inkSecondary)
                 }
+
+                tagRow
             }
         }
+    }
+
+    /// Weather / Engine / Sails / Crew / Issue — pick before or during the
+    /// recording; saved onto the note.
+    private var tagRow: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: Spacing.xs) {
+                ForEach(VoiceTag.allCases) { tag in
+                    tagChip(tag)
+                }
+            }
+        }
+    }
+
+    private func tagChip(_ tag: VoiceTag) -> some View {
+        let isOn = selectedTags.contains(tag)
+        return Button {
+            if isOn { selectedTags.remove(tag) } else { selectedTags.insert(tag) }
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: tag.symbol).font(.system(size: 11, weight: .semibold))
+                Text(tag.titleKey).font(.system(size: 12, weight: .medium))
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .foregroundStyle(isOn ? .white : theme.inkSecondary)
+            .background(Capsule().fill(isOn ? theme.purple : theme.background))
+            .overlay(Capsule().strokeBorder(isOn ? .clear : theme.hairline, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
     }
 
     private var recentSection: some View {
@@ -95,14 +128,22 @@ struct AudioLogView: View {
     private var infoRow: some View {
         HStack(spacing: Spacing.sm) {
             infoTile("location", "voice.info_position", theme.blue)
-            infoTile("waveform", "voice.info_transcribe", theme.purple)
+            // Transcription isn't implemented yet — say so, don't imply it.
+            infoTile("waveform", "voice.info_transcribe", theme.purple, comingSoon: true)
         }
     }
 
-    private func infoTile(_ symbol: String, _ text: LocalizedStringKey, _ color: Color) -> some View {
+    private func infoTile(_ symbol: String, _ text: LocalizedStringKey, _ color: Color,
+                          comingSoon: Bool = false) -> some View {
         Card {
             VStack(alignment: .leading, spacing: 6) {
-                Image(systemName: symbol).foregroundStyle(color)
+                HStack {
+                    Image(systemName: symbol).foregroundStyle(color)
+                    if comingSoon {
+                        Spacer(minLength: 0)
+                        ComingSoonBadge().padding(-8)
+                    }
+                }
                 Text(text).font(AppFont.caption).foregroundStyle(theme.inkSecondary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -131,10 +172,14 @@ struct AudioLogView: View {
         let coord = location.currentCoordinate
         let note = VoiceNote(title: String(localized: "voice.default_title") + " · " + Date.now.hourMinute(),
                              duration: result.duration, fileName: result.fileName,
-                             latitude: coord?.latitude, longitude: coord?.longitude)
+                             latitude: coord?.latitude, longitude: coord?.longitude,
+                             speedKnots: coord != nil ? Units.mpsToKnots(location.speedMps) : nil,
+                             courseDegrees: coord != nil ? location.effectiveHeading : nil,
+                             tags: VoiceTag.allCases.filter { selectedTags.contains($0) })
         note.voyage = recorder.activeVoyage
         context.insert(note)
         try? context.save()
+        selectedTags = []
     }
 
     private var placeholderSamples: [CGFloat] {
@@ -167,6 +212,15 @@ struct AudioNoteRow: View {
                         .font(AppFont.mono(.caption2)).foregroundStyle(theme.inkTertiary)
                 } else {
                     Text(note.createdAt.shortDate).font(AppFont.caption).foregroundStyle(theme.inkSecondary)
+                }
+                if !note.tags.isEmpty {
+                    HStack(spacing: 6) {
+                        ForEach(note.tags) { tag in
+                            Image(systemName: tag.symbol)
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundStyle(theme.purple)
+                        }
+                    }
                 }
             }
             Spacer()

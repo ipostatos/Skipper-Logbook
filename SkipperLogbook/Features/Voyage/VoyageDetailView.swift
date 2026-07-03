@@ -9,6 +9,9 @@ struct VoyageDetailView: View {
     @Environment(\.modelContext) private var context
     let voyageID: PersistentIdentifier
 
+    @State private var csvURL: URL?
+    @State private var gpxURL: URL?
+
     private var voyage: Voyage? { context.model(for: voyageID) as? Voyage }
 
     var body: some View {
@@ -29,6 +32,31 @@ struct VoyageDetailView: View {
         .background(theme.background)
         .navigationTitle(voyage?.name ?? "")
         .navigationBarTitleDisplayMode(.large)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                if csvURL != nil || gpxURL != nil {
+                    Menu {
+                        if let csvURL {
+                            ShareLink(item: csvURL) {
+                                Label("voyage.export_csv", systemImage: "tablecells")
+                            }
+                        }
+                        if let gpxURL {
+                            ShareLink(item: gpxURL) {
+                                Label("voyage.export_gpx", systemImage: "map")
+                            }
+                        }
+                    } label: {
+                        Image(systemName: "square.and.arrow.up")
+                    }
+                }
+            }
+        }
+        .task(id: voyageID) {
+            guard let voyage else { return }
+            csvURL = try? ExportService.writeCSV(for: voyage)
+            gpxURL = try? ExportService.writeGPX(for: voyage)
+        }
     }
 
     private func trackMap(_ voyage: Voyage) -> some View {

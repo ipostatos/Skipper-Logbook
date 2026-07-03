@@ -16,6 +16,9 @@ struct MapView: View {
     @Query(sort: \Voyage.startedAt, order: .reverse) private var voyages: [Voyage]
     @State private var camera: MapCameraPosition = .automatic
     @State private var hybrid = false
+    /// Add-waypoint mode: the next tap on the chart sets the active voyage's
+    /// destination. Only offered while a voyage is recording.
+    @State private var settingWaypoint = false
 
     private var voyage: Voyage? { recorder.activeVoyage ?? voyages.first }
     private var track: [CLLocationCoordinate2D] {
@@ -29,40 +32,52 @@ struct MapView: View {
 
     var body: some View {
         ZStack(alignment: .bottom) {
-            Map(position: $camera) {
-                UserAnnotation()
+            MapReader { proxy in
+                Map(position: $camera) {
+                    UserAnnotation()
 
-                // Planned route (dashed purple)
-                if let route = routeLine {
-                    MapPolyline(coordinates: route)
-                        .stroke(theme.purple, style: StrokeStyle(lineWidth: 3, dash: [8, 6]))
-                }
-                // Sailed track (solid cyan)
-                if track.count > 1 {
-                    MapPolyline(coordinates: track)
-                        .stroke(theme.cyan, style: StrokeStyle(lineWidth: 4, lineCap: .round, lineJoin: .round))
-                }
-                // Waypoint dot
-                if let dest = voyage?.destination {
-                    Annotation(voyage?.destinationName ?? String(localized: "map.waypoint"),
-                               coordinate: dest.clCoordinate) {
-                        waypointDot
+                    // Planned route (dashed purple)
+                    if let route = routeLine {
+                        MapPolyline(coordinates: route)
+                            .stroke(theme.purple, style: StrokeStyle(lineWidth: 3, dash: [8, 6]))
+                    }
+                    // Sailed track (solid cyan)
+                    if track.count > 1 {
+                        MapPolyline(coordinates: track)
+                            .stroke(theme.cyan, style: StrokeStyle(lineWidth: 4, lineCap: .round, lineJoin: .round))
+                    }
+                    // Waypoint dot
+                    if let dest = voyage?.destination {
+                        Annotation(voyage?.destinationName ?? String(localized: "map.waypoint"),
+                                   coordinate: dest.clCoordinate) {
+                            waypointDot
+                        }
+                    }
+                    // MOB marker
+                    if let point = mob.activePoint {
+                        Marker("map.mob", systemImage: "figure.wave", coordinate: point.coordinate.clCoordinate)
+                            .tint(theme.danger)
                     }
                 }
-                // MOB marker
-                if let point = mob.activePoint {
-                    Marker("map.mob", systemImage: "figure.wave", coordinate: point.coordinate.clCoordinate)
-                        .tint(theme.danger)
+                .mapStyle(hybrid ? .hybrid(elevation: .flat)
+                                 : .standard(elevation: .flat, pointsOfInterest: .excludingAll))
+                .mapControls { MapScaleView() }
+                .onTapGesture { screenPoint in
+                    guard settingWaypoint else { return }
+                    if let coord = proxy.convert(screenPoint, from: .local) {
+                        setWaypoint(GeoCoordinate(coord))
+                    }
                 }
             }
-            .mapStyle(hybrid ? .hybrid(elevation: .flat)
-                             : .standard(elevation: .flat, pointsOfInterest: .excludingAll))
-            .mapControls { MapScaleView() }
             .ignoresSafeArea(edges: .top)
             .overlay(alignment: .top) { header }
             .overlay(alignment: .trailing) { controls }
 
-            if let voyage, voyage.destination != nil {
+            if settingWaypoint {
+                waypointHint
+                    .padding(.horizontal, Spacing.pageMargin)
+                    .padding(.bottom, Spacing.tabBarClearance)
+            } else if let voyage, voyage.destination != nil {
                 NextWaypointCard(voyage: voyage,
                                  from: location.currentCoordinate,
                                  speedMps: location.speedMps)
@@ -112,6 +127,14 @@ struct MapView: View {
         VStack(spacing: Spacing.sm) {
             mapButton("square.2.layers.3d") { hybrid.toggle() }
             mapButton("location.fill", action: recenter)
+            // Add-waypoint only exists while a voyage records — a dead button
+            // with no voyage would pretend to work.
+            if recorder.activeVoyage != nil {
+                mapButton(settingWaypoint ? "xmark" : "mappin.and.ellipse") {
+                    settingWaypoint.toggle()
+                }
+            }
+            mobHoldButton
         }
         .padding(.trailing, Spacing.pageMargin)
         .padding(.bottom, Spacing.tabBarClearance + 110)
@@ -127,6 +150,63 @@ struct MapView: View {
                 .cardShadow(theme)
         }
         .buttonStyle(.plain)
+    }
+
+    /// Hold-to-activate MOB, same protection as the big Safety button.
+    private var mobHoldButton: some View {
+        ZStack {
+            Circle().fill(theme.danger).frame(width: 44, height: 44)
+            Text("MOB").font(.system(size: 10, weight: .heavy)).foregroundStyle(.white)
+        }
+        .cardShadow(theme)
+        .contentShape(Circle())
+        .onLongPressGesture(minimumDuration: 0.7) { triggerMOB() }
+        .accessibilityLabel("Man overboard")
+        .accessibilityHint(Text("safety.press_hold"))
+    }
+
+    private var waypointHint: some View {
+        HStack(spacing: Spacing.xs) {
+            Image(systemName: "hand.tap").foregroundStyle(theme.cyan)
+            Text("map.tap_to_set_waypoint")
+                .font(AppFont.footnote).foregroundStyle(theme.ink)
+            Spacer()
+            Button("common.cancel") { settingWaypoint = false }
+                .font(AppFont.footnote.weight(.semibold))
+                .foregroundStyle(theme.cyan)
+        }
+        .padding(.horizontal, Spacing.md)
+        .padding(.vertical, Spacing.sm)
+        .background(.ultraThinMaterial, in: Capsule())
+    }
+
+    // MARK: Actions
+
+    private func setWaypoint(_ coordinate: GeoCoordinate) {
+        guard coordinate.isValid, let voyage = recorder.activeVoyage else {
+            settingWaypoint = false
+            return
+        }
+        voyage.destinationLat = coordinate.latitude
+        voyage.destinationLon = coordinate.longitude
+        if voyage.destinationName == nil {
+            voyage.destinationName = String(localized: "map.waypoint")
+        }
+        // An active voyage is always recording, so this both logs and saves.
+        recorder.addEvent(.turnToWaypoint, at: location.currentCoordinate,
+                          heading: location.effectiveHeading)
+        settingWaypoint = false
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+    }
+
+    private func triggerMOB() {
+        if let coord = location.currentCoordinate {
+            mob.trigger(at: coord,
+                        speedKn: Units.mpsToKnots(location.speedMps),
+                        heading: location.effectiveHeading)
+        }
+        UINotificationFeedbackGenerator().notificationOccurred(.warning)
+        router.presentMOB()
     }
 
     private func recenter() {

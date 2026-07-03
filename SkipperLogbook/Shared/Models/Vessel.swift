@@ -23,6 +23,9 @@ final class Vessel {
     var draftMeters: Double?
     var engineModel: String?
     var fuelCapacityLiters: Double?
+    var waterCapacityLiters: Double?
+    /// Free-form captain's notes about the boat.
+    var notes: String = ""
 
     var createdAt: Date
 
@@ -51,6 +54,8 @@ final class Vessel {
         draftMeters: Double? = nil,
         engineModel: String? = nil,
         fuelCapacityLiters: Double? = nil,
+        waterCapacityLiters: Double? = nil,
+        notes: String = "",
         createdAt: Date = .now
     ) {
         self.name = name
@@ -65,6 +70,8 @@ final class Vessel {
         self.draftMeters = draftMeters
         self.engineModel = engineModel
         self.fuelCapacityLiters = fuelCapacityLiters
+        self.waterCapacityLiters = waterCapacityLiters
+        self.notes = notes
         self.createdAt = createdAt
         self.crew = []
         self.maintenanceItems = []

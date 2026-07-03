@@ -7,11 +7,13 @@ import SwiftData
 /// Screen accent is blue (navigation).
 struct TodayView: View {
     @Environment(\.appTheme) private var theme
+    @Environment(\.openURL) private var openURL
     @Environment(AppRouter.self) private var router
     @Environment(AppState.self) private var appState
     @Environment(LocationManager.self) private var location
     @Environment(VoyageRecorder.self) private var recorder
     @Environment(MOBEngine.self) private var mob
+    @Environment(AnchorWatchEngine.self) private var anchorWatch
 
     @Query private var vessels: [Vessel]
     @Query(sort: \Voyage.startedAt, order: .reverse) private var voyages: [Voyage]
@@ -27,6 +29,8 @@ struct TodayView: View {
         ScrollView {
             VStack(spacing: Spacing.md) {
                 header
+                if mob.isActive { mobActiveBanner }
+                if locationDenied { locationPermissionCard }
                 if recorder.isRecording {
                     activeVoyageCard
                     courseCard
@@ -34,11 +38,12 @@ struct TodayView: View {
                 } else {
                     startCard
                 }
+                if anchorWatch.isActive { anchoredCard }
                 mobCard
                 StatusChipRow(engineOn: appState.engineOn,
                               mainsailPercent: appState.mainsailPercent,
                               jibPercent: appState.jibPercent,
-                              anchorDown: appState.anchorDown,
+                              anchorDown: anchorWatch.isActive,
                               onEngine: toggleEngine, onSails: toggleSails,
                               onAnchor: { router.present(.anchorWatch) },
                               onNote: { router.present(.addLogEvent) })
@@ -170,6 +175,77 @@ struct TodayView: View {
         }
     }
 
+    // MARK: Smart-state cards
+
+    private var locationDenied: Bool {
+        location.permission == .denied || location.permission == .restricted
+    }
+
+    /// Location denied → live metrics can't work; explain and point to Settings.
+    /// Manual logbook keeps working regardless.
+    private var locationPermissionCard: some View {
+        PermissionCard(symbol: "location.slash",
+                       title: "permission.location_card_title",
+                       message: "permission.location_card_message",
+                       actionTitle: "permission.open_settings") {
+            if let url = URL(string: UIApplication.openSettingsURLString) {
+                openURL(url)
+            }
+        }
+    }
+
+    /// An MOB is active → this beats everything else on the screen. Red is
+    /// reserved for exactly this.
+    private var mobActiveBanner: some View {
+        Button { router.presentMOB() } label: {
+            HStack(spacing: Spacing.sm) {
+                Image(systemName: "figure.wave")
+                    .font(.system(size: 22, weight: .bold))
+                    .foregroundStyle(.white)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("today.mob_active").font(AppFont.headline).foregroundStyle(.white)
+                    Text("today.mob_active_sub").font(AppFont.footnote).foregroundStyle(.white.opacity(0.85))
+                }
+                Spacer()
+                Image(systemName: "chevron.right").foregroundStyle(.white.opacity(0.8))
+            }
+            .padding(Spacing.md)
+            .background(
+                RoundedRectangle(cornerRadius: theme.cornerRadius, style: .continuous)
+                    .fill(theme.danger)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// Anchor watch running → the dashboard's "anchored" state: distance vs.
+    /// radius at a glance, red only if actually dragging.
+    private var anchoredCard: some View {
+        Button { router.present(.anchorWatch) } label: {
+            Card {
+                HStack(spacing: Spacing.sm) {
+                    Image(systemName: "anchor.fill")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(anchorWatch.isDragging ? theme.danger : theme.cyan)
+                        .frame(width: 40, height: 40)
+                        .background(Circle().fill((anchorWatch.isDragging ? theme.danger : theme.cyan)
+                            .opacity(theme.isDark ? 0.22 : 0.12)))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(anchorWatch.isDragging ? "today.anchor_dragging" : "today.anchored")
+                            .font(AppFont.headline)
+                            .foregroundStyle(anchorWatch.isDragging ? theme.danger : theme.ink)
+                        Text("\(Int(anchorWatch.currentDistanceMeters)) m / \(Int(anchorWatch.session?.radiusMeters ?? 0)) m")
+                            .font(AppFont.footnote).foregroundStyle(theme.inkSecondary)
+                            .monospacedDigit()
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right").foregroundStyle(theme.inkTertiary)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
     // MARK: MOB card
 
     private var mobCard: some View {
@@ -260,9 +336,11 @@ struct TodayView: View {
     // MARK: Actions
 
     private func triggerMOB() {
+        // The engine writes the logbook event, so every MOB path logs once.
         if let coord = location.currentCoordinate {
-            mob.trigger(at: coord)
-            if recorder.isRecording { recorder.addEvent(.mob, at: coord, heading: location.effectiveHeading) }
+            mob.trigger(at: coord,
+                        speedKn: Units.mpsToKnots(location.speedMps),
+                        heading: location.effectiveHeading)
         }
         UINotificationFeedbackGenerator().notificationOccurred(.warning)
         router.presentMOB()
@@ -299,6 +377,7 @@ struct TodayView: View {
                 .environment(LocationManager())
                 .environment(VoyageRecorder(context: context))
                 .environment(MOBEngine(context: context))
+                .environment(AnchorWatchEngine(context: context))
                 .modelContainer(container)
         }
     }

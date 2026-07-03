@@ -25,7 +25,12 @@ struct SkipperLogbookApp: App {
         self.container = container
 
         let context = container.mainContext
-        SeedData.seedIfNeeded(context)
+        // Demo data never reaches a real user's store: first launch starts
+        // empty. Seed only for development, via the `--seed-demo` launch
+        // argument (previews and tests use their own in-memory containers).
+        if ProcessInfo.processInfo.arguments.contains("--seed-demo") {
+            SeedData.seedIfNeeded(context)
+        }
 
         _recorder = State(initialValue: VoyageRecorder(context: context))
         _anchorWatch = State(initialValue: AnchorWatchEngine(context: context))

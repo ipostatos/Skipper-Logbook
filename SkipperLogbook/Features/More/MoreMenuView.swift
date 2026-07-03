@@ -19,6 +19,7 @@ struct MoreMenuView: View {
                 tile("more.crew", "person.2.fill", Color(hex: "6A2C91")) { router.morePathAppend(.crew) }
                 tile("more.equipment", "shippingbox.fill", Color(hex: "8A1C4B")) { router.morePathAppend(.equipment) }
                 tile("more.deviation", "location.north.circle.fill", Color(hex: "9A7B12")) { router.morePathAppend(.deviation) }
+                tile("more.weather", "cloud.sun.fill", Color(hex: "2C7DA0")) { router.morePathAppend(.weather) }
                 tile("more.statistics", "chart.bar.fill", Color(hex: "3B5BA5")) { router.morePathAppend(.statistics) }
             }
             .padding(.horizontal, Spacing.pageMargin)

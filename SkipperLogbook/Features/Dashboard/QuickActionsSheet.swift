@@ -50,7 +50,11 @@ struct QuickActionsSheet: View {
     }
 
     private func triggerMOB() {
-        if let coord = location.currentCoordinate { mob.trigger(at: coord) }
+        if let coord = location.currentCoordinate {
+            mob.trigger(at: coord,
+                        speedKn: Units.mpsToKnots(location.speedMps),
+                        heading: location.effectiveHeading)
+        }
         UINotificationFeedbackGenerator().notificationOccurred(.warning)
         dismiss(); router.presentMOB()
     }

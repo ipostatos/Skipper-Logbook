@@ -2,10 +2,16 @@ import Foundation
 import SwiftData
 import CoreLocation
 import Observation
+import SwiftUI
+import AudioToolbox
+import UserNotifications
+import os
 
 /// Runs an anchor watch: the captain drops anchor at the current position, sets
 /// an alarm radius, and the engine tracks distance-from-anchor, max deviation,
-/// and whether the boat has dragged outside the circle.
+/// and whether the boat has dragged outside the circle. Dragging fires a real
+/// alarm (haptic + alert sound + local notification) and every start/stop/drag
+/// is written to the logbook.
 @Observable
 @MainActor
 final class AnchorWatchEngine {
@@ -18,6 +24,10 @@ final class AnchorWatchEngine {
 
     private let context: ModelContext
     private let maxTrail = 200
+    private let log = Logger(subsystem: "com.skipperlogbook.app", category: "AnchorWatch")
+    /// Latched after the alarm fires; resets once the boat is safely back inside
+    /// (80% of the radius) so boundary jitter can't re-fire it continuously.
+    private var alarmLatched = false
 
     init(context: ModelContext) {
         self.context = context
@@ -43,7 +53,10 @@ final class AnchorWatchEngine {
         trail = [anchor]
         currentDistanceMeters = 0
         isDragging = false
+        alarmLatched = false
+        logToLogbook(.anchorDown, at: anchor)
         save()
+        requestAlarmAuthorization()
     }
 
     func stop() {
@@ -52,6 +65,9 @@ final class AnchorWatchEngine {
         s.endedAt = .now
         session = nil
         trail = []
+        isDragging = false
+        alarmLatched = false
+        logToLogbook(.anchorUp, at: s.anchor)
         save()
     }
 
@@ -69,13 +85,64 @@ final class AnchorWatchEngine {
         if distance > s.maxDeviationMeters { s.maxDeviationMeters = distance }
         isDragging = distance > s.radiusMeters
 
+        if isDragging, !alarmLatched {
+            alarmLatched = true
+            fireDragAlarm(at: coordinate, distance: distance)
+        } else if distance < s.radiusMeters * 0.8 {
+            alarmLatched = false
+        }
+
         trail.append(coordinate)
         if trail.count > maxTrail { trail.removeFirst(trail.count - maxTrail) }
         save()
     }
 
+    // MARK: Alarm
+
+    /// An anchor watch that cannot wake the skipper is decoration: haptic thump,
+    /// audible alert, local notification (for backgrounded/locked phones), and a
+    /// logbook record of the excursion.
+    private func fireDragAlarm(at coordinate: GeoCoordinate, distance: Double) {
+        UINotificationFeedbackGenerator().notificationOccurred(.error)
+        AudioServicesPlayAlertSound(SystemSoundID(1005))
+        postDragNotification(distance: distance)
+        logToLogbook(.note, at: coordinate,
+                     note: String(localized: "anchor.drag_alarm_note"))
+        log.warning("Anchor drag alarm at \(Int(distance)) m")
+    }
+
+    private func requestAlarmAuthorization() {
+        UNUserNotificationCenter.current()
+            .requestAuthorization(options: [.alert, .sound]) { _, _ in }
+    }
+
+    private func postDragNotification(distance: Double) {
+        let content = UNMutableNotificationContent()
+        content.title = String(localized: "anchor.alarm_title")
+        content.body = String(localized: "anchor.alarm_body \(Int(distance))")
+        content.sound = .default
+        let request = UNNotificationRequest(identifier: "anchor.drag",
+                                            content: content, trigger: nil)
+        UNUserNotificationCenter.current().add(request)
+    }
+
+    // MARK: Logbook
+
+    private func logToLogbook(_ type: LogEventType, at coordinate: GeoCoordinate?,
+                              note: String? = nil) {
+        let voyage = Voyage.recording(in: context)
+        let event = LogEvent(type: type,
+                             latitude: coordinate?.latitude,
+                             longitude: coordinate?.longitude,
+                             legDistanceNM: voyage?.distanceNM,
+                             note: note)
+        event.voyage = voyage
+        context.insert(event)
+    }
+
     private func save() {
-        do { try context.save() } catch { }
+        do { try context.save() }
+        catch { log.error("Anchor watch save failed: \(error.localizedDescription, privacy: .public)") }
     }
 
     private static func fetchActive(in context: ModelContext) -> AnchorWatchSession? {

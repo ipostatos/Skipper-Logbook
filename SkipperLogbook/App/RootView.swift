@@ -195,6 +195,7 @@ private struct AppRoutesModifier: ViewModifier {
             case .seasonLog:    SeasonLogView()
             case .deviation:    DeviationView()
             case .statistics:   StatisticsView()
+            case .weather:      WeatherView()
             case .settings:     SettingsView()
             case .voyageDetail(let box): VoyageDetailView(voyageID: box.id)
             }

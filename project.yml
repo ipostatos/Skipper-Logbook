@@ -70,6 +70,22 @@ targets:
     dependencies:
       - target: SkipperLogbook
 
+  # UI-test target that drives the app to each headline screen and captures
+  # named screenshots. Kept out of the default test scheme (it needs a booted
+  # simulator and is slower) and driven by its own scheme + CI job.
+  SkipperUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: SkipperUITests
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.skipperlogbook.app.uitests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: SkipperLogbook
+    dependencies:
+      - target: SkipperLogbook
+
 schemes:
   SkipperLogbook:
     build:
@@ -80,3 +96,14 @@ schemes:
     test:
       targets:
         - SkipperLogbookTests
+
+  # Screenshot capture scheme — runs only the UI-test screenshot driver.
+  SkipperScreenshots:
+    build:
+      targets:
+        SkipperLogbook: all
+        SkipperWidgets: all
+        SkipperUITests: [test]
+    test:
+      targets:
+        - SkipperUITests

@@ -109,6 +109,7 @@ struct LogbookView: View {
                 Button { showAudioLog = true } label: {
                     Image(systemName: "mic.badge.plus")
                 }
+                .accessibilityIdentifier("logbook.audiolog")
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Button { router.present(.addLogEvent) } label: {

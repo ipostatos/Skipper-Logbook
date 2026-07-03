@@ -42,6 +42,7 @@ struct CustomTabBar: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier("tab.\(tab.rawValue)")
         .accessibilityAddTraits(isSelected ? [.isSelected] : [])
     }
 }

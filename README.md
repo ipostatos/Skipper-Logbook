@@ -80,6 +80,15 @@ System themes (neutral Apple-style dark).
 
 ---
 
+## Preview without a Mac 🖥️→📱
+
+No Mac? A GitHub Actions workflow builds the app, drives an iPhone simulator
+through every screen, and uploads **screenshots** plus a **runnable simulator
+build** as downloadable artifacts. See **[`PREVIEW.md`](PREVIEW.md)** for exactly
+where to download them (and how to open the app in a browser via Appetize.io).
+
+---
+
 ## Requirements & getting started
 
 - **macOS** with **Xcode 16+** (iOS 18 SDK — its `View`-is-`@MainActor` isolation

@@ -221,6 +221,7 @@ struct TodayView: View {
             )
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier("today.mob_active_banner")
     }
 
     /// Anchor watch running → the dashboard's "anchored" state: distance vs.

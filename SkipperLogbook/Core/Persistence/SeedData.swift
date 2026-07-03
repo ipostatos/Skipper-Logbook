@@ -192,4 +192,15 @@ enum SeedData {
         let base = cal.date(byAdding: .day, value: daysInFuture - daysAgo, to: now) ?? now
         return base.addingTimeInterval(addingHours * 3600)
     }
+
+    /// Inserts a single UNRESOLVED MOB point so `MOBEngine` picks it up as the
+    /// active incident on launch. Used only by the screenshot/preview harness
+    /// (behind the `--seed-mob-active` launch argument) — never in production.
+    static func seedActiveMOB(_ context: ModelContext, now: Date = .now) {
+        let point = MOBPoint(timestamp: now.addingTimeInterval(-92), // ~1:32 elapsed
+                             latitude: 43.288, longitude: 5.343,
+                             resolved: false)
+        context.insert(point)
+        try? context.save()
+    }
 }

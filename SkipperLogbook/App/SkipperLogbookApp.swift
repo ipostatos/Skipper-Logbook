@@ -28,8 +28,14 @@ struct SkipperLogbookApp: App {
         // Demo data never reaches a real user's store: first launch starts
         // empty. Seed only for development, via the `--seed-demo` launch
         // argument (previews and tests use their own in-memory containers).
-        if ProcessInfo.processInfo.arguments.contains("--seed-demo") {
+        let args = ProcessInfo.processInfo.arguments
+        if args.contains("--seed-demo") {
             SeedData.seedIfNeeded(context)
+        }
+        // UI-test / preview hook: seed an *unresolved* MOB so the emergency
+        // search screen renders deterministically in CI (no live GPS fix needed).
+        if args.contains("--seed-mob-active") {
+            SeedData.seedActiveMOB(context)
         }
 
         // Swift 5.10 evaluates stored-property default values in a nonisolated

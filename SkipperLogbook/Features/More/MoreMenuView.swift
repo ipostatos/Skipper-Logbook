@@ -12,15 +12,15 @@ struct MoreMenuView: View {
     var body: some View {
         ScrollView {
             LazyVGrid(columns: columns, spacing: Spacing.sm) {
-                tile("more.vessel", "sailboat.fill", Color(hex: "1F6E8C")) { router.morePathAppend(.vessel) }
-                tile("more.engine_log", "fanblades.fill", Color(hex: "C77E3A")) { router.morePathAppend(.maintenance) }
-                tile("more.service_notes", "book.closed.fill", Color(hex: "3E7C57")) { router.morePathAppend(.serviceNotes) }
-                tile("more.season_log", "sun.max.fill", Color(hex: "2E86AB")) { router.morePathAppend(.seasonLog) }
-                tile("more.crew", "person.2.fill", Color(hex: "6A2C91")) { router.morePathAppend(.crew) }
-                tile("more.equipment", "shippingbox.fill", Color(hex: "8A1C4B")) { router.morePathAppend(.equipment) }
-                tile("more.deviation", "location.north.circle.fill", Color(hex: "9A7B12")) { router.morePathAppend(.deviation) }
-                tile("more.weather", "cloud.sun.fill", Color(hex: "2C7DA0")) { router.morePathAppend(.weather) }
-                tile("more.statistics", "chart.bar.fill", Color(hex: "3B5BA5")) { router.morePathAppend(.statistics) }
+                tile("more.vessel", "sailboat.fill", Color(hex: "1F6E8C"), id: "more.tile.vessel") { router.morePathAppend(.vessel) }
+                tile("more.engine_log", "fanblades.fill", Color(hex: "C77E3A"), id: "more.tile.engine_log") { router.morePathAppend(.maintenance) }
+                tile("more.service_notes", "book.closed.fill", Color(hex: "3E7C57"), id: "more.tile.service_notes") { router.morePathAppend(.serviceNotes) }
+                tile("more.season_log", "sun.max.fill", Color(hex: "2E86AB"), id: "more.tile.season_log") { router.morePathAppend(.seasonLog) }
+                tile("more.crew", "person.2.fill", Color(hex: "6A2C91"), id: "more.tile.crew") { router.morePathAppend(.crew) }
+                tile("more.equipment", "shippingbox.fill", Color(hex: "8A1C4B"), id: "more.tile.equipment") { router.morePathAppend(.equipment) }
+                tile("more.deviation", "location.north.circle.fill", Color(hex: "9A7B12"), id: "more.tile.deviation") { router.morePathAppend(.deviation) }
+                tile("more.weather", "cloud.sun.fill", Color(hex: "2C7DA0"), id: "more.tile.weather") { router.morePathAppend(.weather) }
+                tile("more.statistics", "chart.bar.fill", Color(hex: "3B5BA5"), id: "more.tile.statistics") { router.morePathAppend(.statistics) }
             }
             .padding(.horizontal, Spacing.pageMargin)
             .padding(.top, Spacing.sm)
@@ -34,12 +34,13 @@ struct MoreMenuView: View {
                 Button { router.morePathAppend(.settings) } label: {
                     Image(systemName: "gearshape")
                 }
+                .accessibilityIdentifier("more.settings")
             }
         }
     }
 
     private func tile(_ title: LocalizedStringKey, _ symbol: String, _ color: Color,
-                      action: @escaping () -> Void) -> some View {
+                      id: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             VStack(alignment: .leading, spacing: Spacing.md) {
                 Text(title)
@@ -64,6 +65,7 @@ struct MoreMenuView: View {
             )
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier(id)
     }
 }
 

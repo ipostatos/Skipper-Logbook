@@ -1,0 +1,137 @@
+name: Preview (screenshots & simulator build)
+
+# A no-Mac preview loop: builds the app on a macOS runner, drives an iPhone
+# simulator to each headline screen, captures screenshots, and uploads them —
+# plus a runnable simulator .app — as downloadable artifacts.
+
+on:
+  push:
+    branches: [main, "claude/**", "preview/**"]
+  workflow_dispatch:      # lets you trigger it manually from the Actions tab
+
+concurrency:
+  group: preview-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  screenshots:
+    name: Screenshots & simulator build
+    runs-on: macos-15     # Xcode 16.x — the View-is-@MainActor SDK the code assumes
+    timeout-minutes: 40
+
+    env:
+      SIMULATOR: iPhone 16
+      SCHEME_SHOTS: SkipperScreenshots
+      SCHEME_APP: SkipperLogbook
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      - name: Install tools (XcodeGen, xcparse, xcbeautify)
+        run: brew install xcodegen xcparse xcbeautify
+
+      - name: Generate Xcode project
+        run: |
+          xcodegen generate
+          # Newer XcodeGen can emit objectVersion 77 (Xcode 16.3+); normalize to
+          # 56 so any runner Xcode opens it. Harmless when already 56.
+          sed -i '' -E 's/objectVersion = [0-9]+;/objectVersion = 56;/' \
+            SkipperLogbook.xcodeproj/project.pbxproj || true
+
+      - name: Boot simulator
+        run: |
+          xcrun simctl boot "$SIMULATOR" || true
+          xcrun simctl bootstatus "$SIMULATOR" -b || true
+
+      - name: Run screenshot UI tests
+        run: |
+          set -o pipefail
+          xcodebuild test \
+            -project SkipperLogbook.xcodeproj \
+            -scheme "$SCHEME_SHOTS" \
+            -destination "platform=iOS Simulator,name=$SIMULATOR" \
+            -resultBundlePath build/Screenshots.xcresult \
+            -skipPackagePluginValidation \
+            CODE_SIGNING_ALLOWED=NO \
+            | xcbeautify || \
+          xcodebuild test \
+            -project SkipperLogbook.xcodeproj \
+            -scheme "$SCHEME_SHOTS" \
+            -destination "platform=iOS Simulator,name=$SIMULATOR" \
+            -resultBundlePath build/Screenshots.xcresult \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Extract screenshots from result bundle
+        if: always()
+        run: |
+          chmod +x scripts/extract-screenshots.sh
+          ./scripts/extract-screenshots.sh build/Screenshots.xcresult screenshots
+
+      - name: Upload screenshots artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: screenshots/**
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Build simulator .app (Appetize-ready)
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -project SkipperLogbook.xcodeproj \
+            -scheme "$SCHEME_APP" \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination "platform=iOS Simulator,name=$SIMULATOR" \
+            -derivedDataPath build/DerivedData \
+            CODE_SIGNING_ALLOWED=NO | xcbeautify || \
+          xcodebuild build \
+            -project SkipperLogbook.xcodeproj \
+            -scheme "$SCHEME_APP" \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination "platform=iOS Simulator,name=$SIMULATOR" \
+            -derivedDataPath build/DerivedData \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Package .app
+        run: |
+          APP_PATH="$(find build/DerivedData/Build/Products -maxdepth 2 -name 'SkipperLogbook.app' -type d | head -1)"
+          echo "app: $APP_PATH"
+          if [ -z "$APP_PATH" ]; then echo "::error::SkipperLogbook.app not found"; exit 1; fi
+          mkdir -p artifact
+          # Appetize accepts a zipped .app for the iOS Simulator platform.
+          ( cd "$(dirname "$APP_PATH")" && zip -qry "$GITHUB_WORKSPACE/artifact/SkipperLogbook-Simulator.zip" "SkipperLogbook.app" )
+          ls -la artifact
+
+      - name: Upload simulator build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: simulator-app
+          path: artifact/SkipperLogbook-Simulator.zip
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Job summary
+        if: always()
+        run: |
+          {
+            echo "## Skipper Logbook — Preview build"
+            echo ""
+            echo "### 📸 Screenshots"
+            echo "Download the **\`screenshots\`** artifact below. It contains:"
+            for f in screenshots/*.png; do
+              [ -e "$f" ] && echo "- \`$(basename "$f")\`"
+            done
+            echo ""
+            echo "### 📱 Simulator build"
+            echo "Download **\`simulator-app\`** → \`SkipperLogbook-Simulator.zip\` (a zipped"
+            echo "iOS-Simulator .app). Upload it to [Appetize.io](https://appetize.io/upload)"
+            echo "(platform: iOS, type: Simulator) to open the app in a browser."
+          } >> "$GITHUB_STEP_SUMMARY"

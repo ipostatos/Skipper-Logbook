@@ -30,7 +30,11 @@ final class AppState {
     }
 
     init() {
-        self.hasCompletedOnboarding = UserDefaults.standard.bool(forKey: Keys.onboarding)
+        // Screenshot / UI-test harness: skip onboarding so the run lands on the
+        // tab shell (the `--skip-onboarding` flag is dev-only, never in prod).
+        let skipOnboarding = ProcessInfo.processInfo.arguments.contains("--skip-onboarding")
+        self.hasCompletedOnboarding = skipOnboarding
+            || UserDefaults.standard.bool(forKey: Keys.onboarding)
         let rawUnits = UserDefaults.standard.string(forKey: Keys.units)
         self.unitSystem = rawUnits.flatMap(UnitSystem.init) ?? .nautical
     }

@@ -45,6 +45,7 @@ struct OnboardingView: View {
                 }
                 .font(AppFont.headline)
                 .foregroundStyle(theme.accent)
+                .accessibilityIdentifier("onboarding.get_started")
 
                 Text("settings.disclaimer")
                     .font(AppFont.caption)

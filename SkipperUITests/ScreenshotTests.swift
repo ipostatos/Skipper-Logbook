@@ -19,16 +19,39 @@ final class ScreenshotTests: XCTestCase {
         continueAfterFailure = true
         app = XCUIApplication()
         app.launchArguments = [
+            "--skip-onboarding",   // land on the tab shell, not the intro
             "--seed-demo",
             "--seed-mob-active",
             "-AppleLanguages", "(en)",
             "-AppleLocale", "en_US"
         ]
+        // Auto-dismiss the system location-permission dialog if one appears.
+        addUIInterruptionMonitor(withDescription: "system-dialog") { alert in
+            for label in ["Allow While Using App", "Allow Once", "OK", "Allow"] {
+                let button = alert.buttons[label]
+                if button.exists { button.tap(); return true }
+            }
+            return false
+        }
         app.launch()
         _ = app.wait(for: .runningForeground, timeout: 30)
+
+        // Belt & braces: if onboarding still shows, tap "Get started".
+        let getStarted = app.buttons["onboarding.get_started"]
+        if getStarted.waitForExistence(timeout: 3) {
+            getStarted.tap()
+        }
+        // Nudge the interruption monitor (it only fires after an interaction).
+        app.tap()
     }
 
     func testCaptureAllScreens() {
+        // Fail loudly if we never reached the tab shell (e.g. stuck on
+        // onboarding) — otherwise every screenshot would silently be the same
+        // screen. This is the one hard assertion in the suite.
+        XCTAssertTrue(app.buttons["tab.today"].waitForExistence(timeout: 15),
+                      "Tab bar not found — the app did not reach the main shell")
+
         // 1. Today (launch tab)
         step("01-Today") { tapTab("today") }
 

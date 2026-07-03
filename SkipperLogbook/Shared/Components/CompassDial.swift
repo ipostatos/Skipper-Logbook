@@ -1,4 +1,5 @@
 import SwiftUI
+import Darwin
 
 /// The heading compass at the heart of the dashboard: a rotating tick ring with
 /// N/E/S/W cardinals, a fixed lubber index at the top, a boat silhouette, an
@@ -87,10 +88,10 @@ struct CompassDial: View {
             let major = deg % 30 == 0
             let tickLen: CGFloat = major ? 12 : 6
             let angle = Angle.degrees(Double(deg) - 90).radians
-            let p1 = CGPoint(x: center.x + cos(angle) * tickOuter,
-                             y: center.y + sin(angle) * tickOuter)
-            let p2 = CGPoint(x: center.x + cos(angle) * (tickOuter - tickLen),
-                             y: center.y + sin(angle) * (tickOuter - tickLen))
+            let p1 = CGPoint(x: center.x + Darwin.cos(angle) * tickOuter,
+                             y: center.y + Darwin.sin(angle) * tickOuter)
+            let p2 = CGPoint(x: center.x + Darwin.cos(angle) * (tickOuter - tickLen),
+                             y: center.y + Darwin.sin(angle) * (tickOuter - tickLen))
             var tick = Path()
             tick.move(to: p1); tick.addLine(to: p2)
             context.stroke(tick, with: .color(major ? theme.inkSecondary : theme.inkTertiary),
@@ -102,7 +103,7 @@ struct CompassDial: View {
         for (label, deg) in cardinals {
             let angle = Angle.degrees(Double(deg) - 90).radians
             let r = tickOuter - 26
-            let point = CGPoint(x: center.x + cos(angle) * r, y: center.y + sin(angle) * r)
+            let point = CGPoint(x: center.x + Darwin.cos(angle) * r, y: center.y + Darwin.sin(angle) * r)
             let text = Text(label)
                 .font(.system(size: 15, weight: .semibold))
                 .foregroundColor(deg == 0 ? theme.accent : theme.inkSecondary)

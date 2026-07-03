@@ -1,4 +1,5 @@
 import SwiftUI
+import Darwin
 
 /// The hero course indicator on Today: a wide top arc with a gradient sweep, a
 /// fixed lubber triangle at the top, small S / W end labels, and the big course
@@ -73,7 +74,7 @@ struct CourseArc: View {
 
     private func pointOn(center: CGPoint, radius: CGFloat, degrees: Double) -> CGPoint {
         let rad = degrees * .pi / 180
-        return CGPoint(x: center.x + cos(rad) * radius, y: center.y + sin(rad) * radius)
+        return CGPoint(x: center.x + Darwin.cos(rad) * radius, y: center.y + Darwin.sin(rad) * radius)
     }
 }
 

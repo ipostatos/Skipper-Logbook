@@ -1,4 +1,5 @@
 import SwiftUI
+import Darwin
 
 /// Anchor watch: drop the anchor at the current position, set an alarm radius,
 /// and monitor distance-from-anchor + max deviation on a live drift circle.
@@ -149,7 +150,7 @@ struct AnchorWatchView: View {
         let distance = NavigationMath.haversineMeters(anchor, point)
         let bearing = NavigationMath.initialBearingDegrees(from: anchor, to: point)
         let rad = NavigationMath.degreesToRadians(bearing)
-        return CGPoint(x: distance * sin(rad), y: distance * cos(rad)) // east, north
+        return CGPoint(x: distance * Darwin.sin(rad), y: distance * Darwin.cos(rad)) // east, north
     }
 }
 

@@ -42,7 +42,7 @@ struct SafetyView: View {
         Card {
             VStack(alignment: .leading, spacing: Spacing.sm) {
                 Text("safety.last_mob").instrumentLabel(theme.inkSecondary)
-                Text("\(point.timestamp.shortDate), \(point.timestamp.hourMinute())")
+                Text("\(point.timestamp.shortDate()), \(point.timestamp.hourMinute())")
                     .font(AppFont.subheadline).foregroundStyle(theme.ink)
                 Text(CoordinateFormatting.string(point.coordinate))
                     .font(AppFont.mono(.footnote)).foregroundStyle(theme.inkSecondary)

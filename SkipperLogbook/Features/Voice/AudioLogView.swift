@@ -213,7 +213,7 @@ struct AudioNoteRow: View {
                     Text(CoordinateFormatting.string(GeoCoordinate(latitude: lat, longitude: lon)))
                         .font(AppFont.mono(.caption2)).foregroundStyle(theme.inkTertiary)
                 } else {
-                    Text(note.createdAt.shortDate).font(AppFont.caption).foregroundStyle(theme.inkSecondary)
+                    Text(note.createdAt.shortDate()).font(AppFont.caption).foregroundStyle(theme.inkSecondary)
                 }
                 if !note.tags.isEmpty {
                     HStack(spacing: 6) {

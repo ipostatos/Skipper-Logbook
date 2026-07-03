@@ -322,7 +322,7 @@ struct TodayView: View {
             Image(systemName: "sailboat").foregroundStyle(theme.blue).frame(width: 24)
             VStack(alignment: .leading, spacing: 2) {
                 Text(voyage.name).font(AppFont.subheadline).foregroundStyle(theme.ink)
-                Text("\(voyage.startedAt.shortDate) · \(voyage.distanceNM.oneDecimal) nm")
+                Text("\(voyage.startedAt.shortDate()) · \(voyage.distanceNM.oneDecimal) nm")
                     .font(AppFont.caption).foregroundStyle(theme.inkSecondary)
             }
             Spacer()

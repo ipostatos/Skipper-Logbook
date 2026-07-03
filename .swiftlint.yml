@@ -1,0 +1,53 @@
+# SwiftLint configuration for Skipper Logbook.
+# Pragmatic ruleset — keeps the codebase tidy without fighting SwiftUI idioms.
+
+included:
+  - SkipperLogbook
+  - SkipperWidgets
+  - SkipperLogbookTests
+
+excluded:
+  - "**/.build"
+  - "**/DerivedData"
+  - SkipperLogbook.xcodeproj
+
+disabled_rules:
+  - trailing_whitespace          # editors handle this
+  - todo                          # TODOs are allowed during BETA
+  - multiple_closures_with_trailing_closure  # common in SwiftUI
+
+opt_in_rules:
+  - empty_count
+  - closure_spacing
+  - contains_over_first_not_nil
+  - first_where
+  - sorted_first_last
+
+line_length:
+  warning: 140
+  error: 200
+  ignores_comments: true
+  ignores_urls: true
+
+type_body_length:
+  warning: 400
+  error: 600
+
+file_length:
+  warning: 500
+  error: 800
+
+function_body_length:
+  warning: 80
+  error: 150
+
+identifier_name:
+  min_length: 1                   # allow x, y, r, i in geometry/loops
+  max_length: 60
+  excluded: [id, x, y, r, s, i, a, b, h, w, dx, dy]
+
+cyclomatic_complexity:
+  warning: 15
+
+nesting:
+  type_level: 2

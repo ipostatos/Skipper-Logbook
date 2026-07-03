@@ -14,8 +14,9 @@ mkdir -p "$OUTDIR"
 
 if command -v xcparse >/dev/null 2>&1; then
   echo "→ extracting with xcparse"
-  # --test uses the attachment's own name for the filename.
-  xcparse screenshots --test "$XCRESULT" "$OUTDIR"
+  # No division flags → files export FLAT into $OUTDIR using each attachment's
+  # own name (01-Today.png, …). (`--test` would nest them per-test.)
+  xcparse screenshots "$XCRESULT" "$OUTDIR"
 else
   echo "→ xcparse not found; falling back to xcresulttool"
   # Enumerate attachments and export each by id, naming by its suggested name.
@@ -64,6 +65,23 @@ def walk(node):
 walk(data)
 PY
 fi
+
+# Flatten: xcparse (or the fallback) may nest images under subfolders. Move any
+# image found at any depth up to $OUTDIR root, so the artifact is a flat, named
+# set. On name collisions, keep a numbered suffix.
+n=0
+find "$OUTDIR" -mindepth 2 -type f \( -iname '*.png' -o -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.heic' \) -print0 \
+  | while IFS= read -r -d '' f; do
+      base="$(basename "$f")"
+      dest="$OUTDIR/$base"
+      if [ -e "$dest" ] && [ "$f" != "$dest" ]; then
+        n=$((n+1))
+        dest="$OUTDIR/${base%.*}-$n.${base##*.}"
+      fi
+      [ "$f" != "$dest" ] && mv -f "$f" "$dest" || true
+    done
+# Remove now-empty subdirectories.
+find "$OUTDIR" -mindepth 1 -type d -empty -delete 2>/dev/null || true
 
 echo "→ screenshots in $OUTDIR:"
 ls -la "$OUTDIR" || true

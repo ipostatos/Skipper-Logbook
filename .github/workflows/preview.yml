@@ -88,9 +88,24 @@ jobs:
           {
             echo "### 🔎 Screenshot capture check"
             echo "- Total: **$COUNT**  ·  Distinct: **$UNIQUE** (expected 8)"
+            echo ""
+            echo "| file | size | sha (first 8) |"
+            echo "|---|---|---|"
+            for f in $(find screenshots -maxdepth 1 -type f \( -iname '*.png' -o -iname '*.jpg' \) | sort); do
+              sz=$(stat -f%z "$f" 2>/dev/null || stat -c%s "$f")
+              sh=$(shasum "$f" | awk '{print substr($1,1,8)}')
+              echo "| \`$(basename "$f")\` | $sz | \`$sh\` |"
+            done
           } >> "$GITHUB_STEP_SUMMARY"
+          # Emit which files share a hash (the duplicates) as a warning we can read.
+          DUPES=$(find screenshots -maxdepth 1 -type f \( -iname '*.png' -o -iname '*.jpg' \) -exec shasum {} \; \
+            | awk '{print $1, $2}' | sort \
+            | awk '{h=$1; f=$2; sub(".*/","",f); grp[h]=grp[h]" "f} END{for(h in grp){n=split(grp[h],a," "); if(n>1) print "IDENTICAL:" grp[h]}}')
+          if [ -n "$DUPES" ]; then
+            echo "::warning::Duplicate screenshots (same image captured for different screens): $DUPES"
+          fi
           if [ "$UNIQUE" -lt 8 ]; then
-            echo "::warning::Only $UNIQUE distinct screenshots (expected 8). Screens may not have been reached — check navigation / launch flags."
+            echo "::warning::Only $UNIQUE distinct screenshots (expected 8). $DUPES"
           fi
 
       - name: Upload screenshots artifact

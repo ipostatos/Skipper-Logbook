@@ -78,13 +78,15 @@ final class ScreenshotTests: XCTestCase {
 
         // 6. Weather (More → Weather tile)
         step("06-Weather") {
-            tapTab("more")
+            openMoreRoot()
             tapAny("more.tile.weather")
         }
 
-        // 7. Settings (More → gear)
+        // 7. Settings (More → gear). Re-tapping the More tab does NOT pop the
+        // pushed Weather screen, so we must return to the More root first —
+        // otherwise Settings would never be reached and we'd re-capture Weather.
         step("08-Settings") {
-            tapTab("more")
+            openMoreRoot()
             tapAny("more.settings")
         }
 
@@ -134,6 +136,19 @@ final class ScreenshotTests: XCTestCase {
             return
         }
         XCTContext.runActivity(named: "\(id) not found") { _ in }
+    }
+
+    /// Ensures the More tab is showing its menu root (tiles visible), popping any
+    /// pushed child first. Re-tapping a tab does not pop its NavigationStack, so
+    /// we walk the back button until a tile appears.
+    private func openMoreRoot() {
+        tapTab("more")
+        for _ in 0..<4 {
+            if app.buttons["more.tile.weather"].waitForExistence(timeout: 2) { return }
+            let back = app.navigationBars.buttons.element(boundBy: 0)
+            if back.exists && back.isHittable { back.tap() } else { break }
+        }
+        _ = app.buttons["more.tile.weather"].waitForExistence(timeout: 3)
     }
 
     private func dismissSheet() {

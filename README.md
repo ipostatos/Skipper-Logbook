@@ -55,8 +55,6 @@ unit-system switching, maintenance auto-reminders/scheduling, CloudKit sync, liv
 weather/tides, animated route replay. The app starts empty — no demo data ships to
 real users (developers can seed a demo fleet with the `--seed-demo` launch argument).
 
-Project planning & agent context live in [`hermes/`](hermes/00_project_context.md).
-
 ---
 
 ## Design language — "Liquid Nautical"

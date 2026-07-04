@@ -38,6 +38,9 @@ fastlane/screenshots/
 .claude/
 .cursor/
 
+# Local project context / working notes (kept out of the repo)
+hermes/
+
 # Unrelated carry-over folders from other projects (do not publish)
 .cursor-context/
 hermes_context/

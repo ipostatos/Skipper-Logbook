@@ -60,7 +60,9 @@ struct MOBActiveView: View {
                 .foregroundStyle(theme.ink).monospacedDigit()
             Text(String(format: String(localized: "mob.accuracy"), Int(accuracy)))
                 .font(AppFont.footnote).foregroundStyle(theme.inkSecondary)
-            Text("\(Int(mob.bearingDegrees))°")
+            // "°T": the bearing is TRUE (computed from coordinates) — flag it so
+            // nobody steers it on a magnetic compass card.
+            Text("\(Int(mob.bearingDegrees))°T")
                 .font(.system(size: 34, weight: .semibold, design: .rounded))
                 .foregroundStyle(theme.accent).monospacedDigit()
         }
@@ -69,9 +71,11 @@ struct MOBActiveView: View {
     /// A compass ring with a bold arrow pointing at the person, rotated by the
     /// relative bearing (MOB bearing − boat heading).
     private var homingCompass: some View {
-        let relative = mob.relativeBearing(boatHeading: location.effectiveHeading)
+        // The MOB bearing is true (from coordinates); mixing in a magnetic
+        // effectiveHeading would skew the arrow by the local declination.
+        let relative = mob.relativeBearing(boatHeading: location.trueReferenceHeading)
         return ZStack {
-            CompassDial(heading: location.effectiveHeading, showNumeral: false)
+            CompassDial(heading: location.trueReferenceHeading, showNumeral: false)
                 .frame(width: 240, height: 240)
             Image(systemName: "location.north.fill")
                 .font(.system(size: 40, weight: .bold))

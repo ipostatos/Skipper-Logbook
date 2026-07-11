@@ -13,6 +13,10 @@ final class LocationManager: NSObject, CLLocationManagerDelegate {
     private(set) var speedMps: Double = 0          // clamped ≥ 0
     private(set) var courseDegrees: Double = 0     // course over ground, 0..360
     private(set) var headingDegrees: Double?       // magnetic heading if available
+    /// True heading, only when the device can compute it (needs location for
+    /// declination). Kept separate from `headingDegrees` so consumers that need
+    /// a TRUE reference never silently mix in a magnetic value.
+    private(set) var trueHeadingDegrees: Double?
     private(set) var permission: LocationPermission = .notDetermined
     private(set) var isUpdating = false
 
@@ -76,6 +80,15 @@ final class LocationManager: NSObject, CLLocationManagerDelegate {
     /// when the device provides it, otherwise course over ground.
     var effectiveHeading: Double {
         headingDegrees ?? courseDegrees
+    }
+
+    /// Heading in a guaranteed TRUE reference frame: true heading when
+    /// available, otherwise COG (always true). Both operands share the same
+    /// basis, so bearings computed against true-north targets (MOB) are honest —
+    /// `effectiveHeading` can silently be magnetic and skew the arrow by the
+    /// local declination.
+    var trueReferenceHeading: Double {
+        trueHeadingDegrees ?? courseDegrees
     }
 
     // MARK: Control
@@ -142,8 +155,10 @@ final class LocationManager: NSObject, CLLocationManagerDelegate {
                                      didUpdateHeading newHeading: CLHeading) {
         guard newHeading.headingAccuracy >= 0 else { return }
         let value = newHeading.trueHeading >= 0 ? newHeading.trueHeading : newHeading.magneticHeading
+        let trueValue = newHeading.trueHeading >= 0 ? newHeading.trueHeading : nil
         Task { @MainActor in
             self.headingDegrees = value
+            if let trueValue { self.trueHeadingDegrees = trueValue }
         }
     }
 

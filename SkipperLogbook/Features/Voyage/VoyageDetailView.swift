@@ -7,9 +7,11 @@ import MapKit
 struct VoyageDetailView: View {
     @Environment(\.appTheme) private var theme
     @Environment(\.modelContext) private var context
+    @Environment(\.dismiss) private var dismiss
     let voyageID: PersistentIdentifier
 
     @State private var exportItem: ExportItem?
+    @State private var confirmDelete = false
 
     private var voyage: Voyage? { context.model(for: voyageID) as? Voyage }
 
@@ -47,6 +49,14 @@ struct VoyageDetailView: View {
                         } label: {
                             Label("voyage.export_gpx", systemImage: "map")
                         }
+                        // A still-recording voyage can't be deleted — the
+                        // recorder holds a live reference; stop it first.
+                        if !voyage.isRecording {
+                            Divider()
+                            Button(role: .destructive) { confirmDelete = true } label: {
+                                Label("voyage.delete", systemImage: "trash")
+                            }
+                        }
                     } label: {
                         Image(systemName: "square.and.arrow.up")
                     }
@@ -56,6 +66,21 @@ struct VoyageDetailView: View {
         .sheet(item: $exportItem) { item in
             ShareSheet(items: [item.url])
         }
+        .confirmationDialog("voyage.delete_confirm", isPresented: $confirmDelete,
+                            titleVisibility: .visible) {
+            Button("voyage.delete", role: .destructive) { deleteVoyage() }
+            Button("common.cancel", role: .cancel) {}
+        }
+    }
+
+    private func deleteVoyage() {
+        guard let voyage else { return }
+        // The cascade removes VoiceNote ROWS, not their .m4a files — sweep the
+        // audio first or it leaks in Documents forever.
+        for note in voyage.voiceNotes { note.deleteAudioFile() }
+        context.delete(voyage)
+        try? context.save()
+        dismiss()
     }
 
     private func trackMap(_ voyage: Voyage) -> some View {

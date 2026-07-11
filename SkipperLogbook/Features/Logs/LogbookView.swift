@@ -7,6 +7,7 @@ struct LogbookView: View {
     @Environment(\.appTheme) private var theme
     @Environment(AppRouter.self) private var router
     @Environment(VoyageRecorder.self) private var recorder
+    @Environment(\.modelContext) private var context
 
     @Query(sort: \LogEvent.timestamp, order: .reverse) private var allEvents: [LogEvent]
     @Query(sort: \Voyage.startedAt, order: .reverse) private var voyages: [Voyage]
@@ -15,6 +16,7 @@ struct LogbookView: View {
     @State private var searchText = ""
     @State private var filter: LogFilter = .all
     @State private var showAudioLog = false
+    @State private var eventToDelete: LogEvent?
 
     private var activeVoyage: Voyage? {
         recorder.activeVoyage ?? voyages.first
@@ -123,6 +125,19 @@ struct LogbookView: View {
         .sheet(isPresented: $showAudioLog) {
             NavigationStack { AudioLogView() }
         }
+        .confirmationDialog("logbook.delete_confirm",
+                            isPresented: Binding(get: { eventToDelete != nil },
+                                                 set: { if !$0 { eventToDelete = nil } }),
+                            titleVisibility: .visible) {
+            Button("logbook.delete_entry", role: .destructive) {
+                if let event = eventToDelete {
+                    context.delete(event)
+                    try? context.save()
+                }
+                eventToDelete = nil
+            }
+            Button("common.cancel", role: .cancel) { eventToDelete = nil }
+        }
     }
 
     // MARK: Filter chips
@@ -164,6 +179,13 @@ struct LogbookView: View {
                 LogEventRow(event: event)
             }
             .buttonStyle(.plain)
+            // Rows live in ScrollView cards (no List swipe actions) — deletion
+            // goes through long-press + confirmation instead.
+            .contextMenu {
+                Button(role: .destructive) { eventToDelete = event } label: {
+                    Label("logbook.delete_entry", systemImage: "trash")
+                }
+            }
         case .voice(let note):
             AudioNoteRow(note: note)
         }

@@ -189,12 +189,16 @@ struct AudioLogView: View {
     }
 }
 
-/// A recent voice-note row with inline play/stop, title, coords, waveform, duration.
+/// A recent voice-note row with inline play/stop, title, coords, waveform,
+/// duration. Long-press to delete (rows live in ScrollView cards, so the
+/// List-only swipe actions are not available here).
 struct AudioNoteRow: View {
     @Environment(\.appTheme) private var theme
+    @Environment(\.modelContext) private var context
     let note: VoiceNote
     @State private var audio = AudioRecorderController()
     @State private var isPlaying = false
+    @State private var confirmDelete = false
 
     var body: some View {
         HStack(spacing: Spacing.sm) {
@@ -230,7 +234,25 @@ struct AudioNoteRow: View {
                 .font(AppFont.mono(.footnote)).foregroundStyle(theme.inkSecondary)
         }
         .padding(.vertical, Spacing.sm).padding(.horizontal, Spacing.sm)
+        .contentShape(Rectangle())
         .onChange(of: audio.mode) { _, mode in if mode == .idle { isPlaying = false } }
+        .contextMenu {
+            Button(role: .destructive) { confirmDelete = true } label: {
+                Label("voice.delete", systemImage: "trash")
+            }
+        }
+        .confirmationDialog("voice.delete_confirm", isPresented: $confirmDelete,
+                            titleVisibility: .visible) {
+            Button("voice.delete", role: .destructive) { deleteNote() }
+            Button("common.cancel", role: .cancel) {}
+        }
+    }
+
+    private func deleteNote() {
+        if isPlaying { audio.stopPlayback(); isPlaying = false }
+        note.deleteAudioFile()               // cascade deletes rows, not files
+        context.delete(note)
+        try? context.save()
     }
 }
 

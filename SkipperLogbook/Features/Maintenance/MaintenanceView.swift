@@ -6,7 +6,10 @@ import SwiftData
 /// Coming soon.
 struct MaintenanceView: View {
     @Environment(\.appTheme) private var theme
+    @Environment(\.modelContext) private var context
     @Query(sort: \MaintenanceItem.performedAt, order: .reverse) private var items: [MaintenanceItem]
+    @State private var adding = false
+    @State private var itemToDelete: MaintenanceItem?
 
     /// The soonest upcoming service, if any target dates/hours exist.
     private var nextService: MaintenanceItem? {
@@ -25,6 +28,11 @@ struct MaintenanceView: View {
                         VStack(spacing: 0) {
                             ForEach(Array(items.enumerated()), id: \.element.id) { i, item in
                                 MaintenanceItemRow(item: item)
+                                    .contextMenu {
+                                        Button(role: .destructive) { itemToDelete = item } label: {
+                                            Label("common.delete", systemImage: "trash")
+                                        }
+                                    }
                                 if i < items.count - 1 { Divider().overlay(theme.hairline) }
                             }
                         }
@@ -41,7 +49,66 @@ struct MaintenanceView: View {
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button {} label: { Image(systemName: "plus") }.comingSoon()
+                Button { adding = true } label: { Image(systemName: "plus") }
+            }
+        }
+        .sheet(isPresented: $adding) { MaintenanceAddSheet() }
+        .referenceDeleteDialog(item: $itemToDelete, title: "maintenance.delete_confirm", context: context)
+    }
+}
+
+/// New service record. Local state only; the item is inserted on Done —
+/// cancelling leaves nothing behind (rule 2.2).
+struct MaintenanceAddSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var context
+
+    @State private var title = ""
+    @State private var detail = ""
+    @State private var performedAt = Date.now
+    @State private var engineHours: Double?
+    @State private var nextHours: Double?
+    @State private var hasNextDate = false
+    @State private var nextDate = Date.now
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    TextField("maintenance.item_title", text: $title)
+                    TextField("maintenance.detail", text: $detail, axis: .vertical).lineLimit(2...4)
+                    DatePicker("maintenance.performed", selection: $performedAt, displayedComponents: .date)
+                    ReferenceNumberRow(label: "maintenance.hours_at_service", value: $engineHours)
+                }
+                Section("maintenance.next_service") {
+                    ReferenceNumberRow(label: "maintenance.next_hours", value: $nextHours)
+                    Toggle("maintenance.has_next_date", isOn: $hasNextDate.animation())
+                    if hasNextDate {
+                        DatePicker("maintenance.next_date", selection: $nextDate, displayedComponents: .date)
+                    }
+                }
+            }
+            .navigationTitle("maintenance.add_title")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("common.cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("common.done") {
+                        let trimmedDetail = detail.trimmingCharacters(in: .whitespacesAndNewlines)
+                        let item = MaintenanceItem(title: title.trimmingCharacters(in: .whitespaces),
+                                                   detail: trimmedDetail.isEmpty ? nil : trimmedDetail,
+                                                   performedAt: performedAt,
+                                                   engineHoursAtService: engineHours,
+                                                   nextServiceHours: nextHours,
+                                                   nextServiceDate: hasNextDate ? nextDate : nil)
+                        context.insert(item)
+                        try? context.save()
+                        dismiss()
+                    }
+                    .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty)
+                }
             }
         }
     }

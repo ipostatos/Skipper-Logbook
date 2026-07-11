@@ -149,6 +149,15 @@ final class AudioRecorderController: NSObject {
     }
 }
 
+extension VoiceNote {
+    /// Removes the backing `.m4a` from Documents/VoiceNotes. Call BEFORE
+    /// deleting the model (or its voyage): SwiftData's cascade removes rows,
+    /// never files — skipping this leaks orphaned audio forever.
+    func deleteAudioFile() {
+        try? FileManager.default.removeItem(at: AudioRecorderController.url(for: fileName))
+    }
+}
+
 extension AudioRecorderController: AVAudioPlayerDelegate {
     nonisolated func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
         Task { @MainActor in

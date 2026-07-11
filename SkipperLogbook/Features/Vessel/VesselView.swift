@@ -10,6 +10,9 @@ struct VesselView: View {
     @Environment(AppRouter.self) private var router
     @Query private var vessels: [Vessel]
     @State private var editing = false
+    /// Draft for the add flow — created OUTSIDE the context and inserted only
+    /// on Done (see `VesselEditView.isNew`), so cancelling leaves no ghost.
+    @State private var draftVessel: Vessel?
 
     private var vessel: Vessel? { vessels.first }
 
@@ -46,6 +49,9 @@ struct VesselView: View {
         }
         .sheet(isPresented: $editing) {
             if let vessel { VesselEditView(vessel: vessel) }
+        }
+        .sheet(item: $draftVessel) { draft in
+            VesselEditView(vessel: draft, isNew: true)
         }
     }
 
@@ -100,10 +106,9 @@ struct VesselView: View {
     }
 
     private func createVessel() {
-        let vessel = Vessel(name: String(localized: "vessel.default_name"))
-        context.insert(vessel)
-        try? context.save()
-        editing = true
+        // Not inserted here — VesselEditView inserts on Done (rule: no ghost
+        // records from cancelled add flows).
+        draftVessel = Vessel(name: "")
     }
 
     @ViewBuilder

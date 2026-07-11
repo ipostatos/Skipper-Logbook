@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Safety screen reachable**: a Safety tile (first in the More grid) opens the
+  full Safety hub — previously the screen existed but had no route to it.
+- **Add forms for all reference sections** — Equipment, Service Notes, Season
+  Log, Deviation table and the Maintenance log each get a "+" form (insert on
+  Done only; cancel/swipe leaves no ghost records). The deviation form stores
+  East as + and West as − via a segmented picker.
+- **Deletions with confirmation everywhere data is created**: voyages (toolbar
+  menu; also removes the voice-note audio files the cascade would leak), log
+  entries and voice notes (long-press), crew members (confirm dialog), and all
+  reference-section rows (long-press).
+- **Cancel for the new-vessel flow** — the vessel is created outside the store
+  and inserted only on Done, so dismissing the sheet no longer leaves a
+  "New Boat" ghost.
 - **Weather screen** (More → Weather): manual wind/sea observations from the log;
   forecast & tides are labeled Coming soon — no fake live data.
 - **Tap-to-set waypoint** on the Map during an active voyage — lights up the route
@@ -25,6 +38,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Manual log entry button in the Logbook toolbar.
 
 ### Changed
+- **MOB homing arrow uses a true-north basis** — the relative bearing is now
+  computed against true heading (falling back to COG, also true) instead of a
+  possibly-magnetic heading, and the bearing readout is labelled °T. Other
+  screens keep `effectiveHeading` for display.
+- **Today's "to waypoint" sparkline shows the real remaining-distance trend**
+  computed from the recent track tail — it previously plotted reversed speed
+  samples, which was a meaningless line.
 - **Safety-critical fix fan-out moved out of the view layer** — a new
   `FixCoordinator` (built in the app's init) routes every accepted GPS fix to
   the recorder, anchor watch and MOB engines and keeps the background-location

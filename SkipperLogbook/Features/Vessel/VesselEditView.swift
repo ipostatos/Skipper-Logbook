@@ -3,10 +3,13 @@ import SwiftData
 import PhotosUI
 
 /// Edit form for the vessel, including a PhotosPicker for the boat photo.
+/// In `isNew` mode the vessel is NOT in the context yet: it is inserted only
+/// on Done, so Cancel / swipe-down leaves no "New Boat" ghost behind.
 struct VesselEditView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var context
     @Bindable var vessel: Vessel
+    var isNew = false
 
     @State private var photoItem: PhotosPickerItem?
 
@@ -52,8 +55,18 @@ struct VesselEditView: View {
             .navigationTitle("vessel.edit_title")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                if isNew {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("common.cancel") { dismiss() }
+                    }
+                }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("common.done") { try? context.save(); dismiss() }
+                    Button("common.done") {
+                        if isNew { context.insert(vessel) }
+                        try? context.save()
+                        dismiss()
+                    }
+                    .disabled(isNew && vessel.name.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
             }
         }

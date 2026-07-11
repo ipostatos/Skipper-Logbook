@@ -42,6 +42,12 @@ final class LocationManager: NSObject, CLLocationManagerDelegate {
         allowsBackground && permission != .always
     }
 
+    /// Fan-out hook for accepted fixes. `FixCoordinator` routes them to the
+    /// recorder / anchor / MOB engines — deliberately NOT the view layer, so the
+    /// safety chain keeps running even when no SwiftUI scene is being updated
+    /// (backgrounded / locked phone).
+    var onFix: ((CLLocation) -> Void)?
+
     private let manager = CLLocationManager()
 
     private enum Keys {
@@ -110,15 +116,25 @@ final class LocationManager: NSObject, CLLocationManagerDelegate {
 
     // MARK: CLLocationManagerDelegate
 
+    /// A fix is usable when its accuracy is valid and sane (0 < hAcc ≤ 100 m)
+    /// and it isn't a stale cached position (the first callback after start can
+    /// deliver an old fix). Garbage fixes otherwise pollute the track, the
+    /// integrated distance and the anchor-drag decision.
+    nonisolated static func isUsable(_ location: CLLocation) -> Bool {
+        guard location.horizontalAccuracy > 0, location.horizontalAccuracy <= 100 else { return false }
+        return abs(location.timestamp.timeIntervalSinceNow) <= 15
+    }
+
     nonisolated func locationManager(_ manager: CLLocationManager,
                                      didUpdateLocations locations: [CLLocation]) {
-        guard let latest = locations.last else { return }
+        guard let latest = locations.reversed().first(where: Self.isUsable) else { return }
         Task { @MainActor in
             self.currentLocation = latest
             self.speedMps = max(0, latest.speed)
             if latest.course >= 0 {
                 self.courseDegrees = latest.course
             }
+            self.onFix?(latest)
         }
     }
 

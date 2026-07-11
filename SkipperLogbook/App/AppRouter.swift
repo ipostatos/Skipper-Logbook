@@ -38,6 +38,7 @@ enum AppRoute: Hashable {
     case serviceNotes
     case seasonLog
     case deviation
+    case safety
     case statistics
     case weather
     case settings

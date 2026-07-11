@@ -42,7 +42,7 @@ struct TodayView: View {
                 }
                 if anchorWatch.isActive { anchoredCard }
                 mobCard
-                StatusChipRow(engineOn: appState.engineOn,
+                StatusChipRow(engineOn: recorder.engineOn,
                               mainsailPercent: appState.mainsailPercent,
                               jibPercent: appState.jibPercent,
                               anchorDown: anchorWatch.isActive,
@@ -145,13 +145,15 @@ struct TodayView: View {
     }
 
     private var speedWaypointRow: some View {
-        HStack(spacing: Spacing.sm) {
+        // One track-tail slice feeds both cards (orderedTrack sorts on access).
+        let tail = recorder.activeVoyage.map { Array($0.orderedTrack.suffix(20)) } ?? []
+        return HStack(spacing: Spacing.sm) {
             metricSparkCard(value: "\(readout.speedKn.oneDecimal)", unit: "kn",
                             caption: "today.speed", symbol: "gauge.with.dots.needle.bottom.50percent",
-                            role: .blue, samples: speedSamples)
+                            role: .blue, samples: normalizedSpeeds(tail))
             metricSparkCard(value: readout.remainingDistanceNM.map { $0.oneDecimal } ?? "—", unit: "nm",
                             caption: "today.to_waypoint", symbol: "flag.fill",
-                            role: .purple, samples: Array(speedSamples.reversed()))
+                            role: .purple, samples: remainingSamples(tail))
         }
     }
 
@@ -277,7 +279,7 @@ struct TodayView: View {
         )
         .contentShape(RoundedRectangle(cornerRadius: theme.cornerRadius, style: .continuous))
         .onLongPressGesture(minimumDuration: MOBButton.holdDuration) { triggerMOB() }
-        .accessibilityLabel("Man overboard")
+        .accessibilityLabel(Text("mob.title"))
         .accessibilityHint(Text("safety.press_hold"))
     }
 
@@ -333,13 +335,21 @@ struct TodayView: View {
         .contentShape(Rectangle())
     }
 
-    // MARK: Sparkline data (last track speeds, normalized)
+    // MARK: Sparkline data (from the recent track tail, normalized)
 
-    private var speedSamples: [CGFloat] {
-        let pts = recorder.activeVoyage?.orderedTrack.suffix(20) ?? []
+    private func normalizedSpeeds(_ pts: [TrackPoint]) -> [CGFloat] {
         let speeds = pts.map { CGFloat($0.speedKnots) }
         guard let maxV = speeds.max(), maxV > 0 else { return [0.3, 0.5, 0.4, 0.6] }
         return speeds.map { $0 / maxV }
+    }
+
+    /// Real remaining-distance trend to the waypoint (previously this card was
+    /// fed reversed *speed* samples — a meaningless line).
+    private func remainingSamples(_ pts: [TrackPoint]) -> [CGFloat] {
+        guard let dest = recorder.activeVoyage?.destination, !pts.isEmpty else { return [0.4, 0.4] }
+        let dists = pts.map { CGFloat(NavigationMath.haversineMeters($0.coordinate, dest)) }
+        guard let maxV = dists.max(), maxV > 0 else { return [0.4, 0.4] }
+        return dists.map { $0 / maxV }
     }
 
     // MARK: Actions
@@ -355,9 +365,7 @@ struct TodayView: View {
     }
 
     private func toggleEngine() {
-        appState.engineOn.toggle()
-        recorder.propulsion = appState.engineOn ? .engine : (appState.mainsailPercent != nil ? .sails : .idle)
-        if recorder.isRecording { recorder.toggleEngine() }
+        recorder.toggleEngine(sailsUp: appState.mainsailPercent != nil)
     }
 
     private func toggleSails() {
@@ -370,6 +378,7 @@ struct TodayView: View {
             appState.mainsailPercent = nil; appState.jibPercent = nil
             if recorder.isRecording { recorder.addEvent(.sailsDown, at: location.currentCoordinate) }
         }
+        recorder.setSailState(up: appState.mainsailPercent != nil)
     }
 }
 

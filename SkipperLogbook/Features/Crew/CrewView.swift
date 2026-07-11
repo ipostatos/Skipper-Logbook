@@ -46,15 +46,57 @@ struct CrewView: View {
             CrewMemberEditView(member: member)
         }
         .sheet(isPresented: $addingNew) {
-            CrewMemberEditView(member: newMember())
+            // The member is inserted only on Done (inside the add view) — a
+            // swipe-down cancel must not leave a persisted blank row behind.
+            CrewMemberAddView(sortIndex: crew.count, vessel: vessels.first)
         }
     }
+}
 
-    private func newMember() -> CrewMember {
-        let member = CrewMember(name: "", role: "", sortIndex: crew.count)
-        member.vessel = vessels.first
-        context.insert(member)
-        return member
+/// Add a new crew member: plain local state, nothing touches the store until
+/// Done. (Inserting inside the sheet's ViewBuilder used to persist "ghost"
+/// members on swipe-dismiss.)
+struct CrewMemberAddView: View {
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var context
+    let sortIndex: Int
+    let vessel: Vessel?
+
+    @State private var name = ""
+    @State private var role = ""
+    @State private var phone = ""
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("crew.details") {
+                    TextField("crew.name", text: $name)
+                    TextField("crew.role", text: $role)
+                    TextField("crew.phone", text: $phone)
+                        .keyboardType(.phonePad)
+                }
+            }
+            .navigationTitle("crew.edit_title")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("common.cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("common.done") {
+                        let member = CrewMember(name: name.trimmingCharacters(in: .whitespaces),
+                                                role: role, sortIndex: sortIndex)
+                        let trimmedPhone = phone.trimmingCharacters(in: .whitespaces)
+                        member.phone = trimmedPhone.isEmpty ? nil : trimmedPhone
+                        member.vessel = vessel
+                        context.insert(member)
+                        try? context.save()
+                        dismiss()
+                    }
+                    .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
+                }
+            }
+        }
     }
 }
 
@@ -85,6 +127,7 @@ struct CrewMemberEditView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var context
     @Bindable var member: CrewMember
+    @State private var confirmDelete = false
 
     var body: some View {
         NavigationStack {
@@ -96,9 +139,7 @@ struct CrewMemberEditView: View {
                         .keyboardType(.phonePad)
                 }
                 Section {
-                    Button("crew.delete", role: .destructive) {
-                        context.delete(member); try? context.save(); dismiss()
-                    }
+                    Button("crew.delete", role: .destructive) { confirmDelete = true }
                 }
             }
             .navigationTitle("crew.edit_title")
@@ -108,6 +149,13 @@ struct CrewMemberEditView: View {
                     Button("common.done") { try? context.save(); dismiss() }
                         .disabled(member.name.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
+            }
+            .confirmationDialog("crew.delete_confirm", isPresented: $confirmDelete,
+                                titleVisibility: .visible) {
+                Button("crew.delete", role: .destructive) {
+                    context.delete(member); try? context.save(); dismiss()
+                }
+                Button("common.cancel", role: .cancel) {}
             }
         }
     }

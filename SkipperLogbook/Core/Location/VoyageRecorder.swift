@@ -17,12 +17,50 @@ final class VoyageRecorder {
 
     /// Current propulsion mode, toggled by the quick actions (engine/sail state).
     var propulsion: PropulsionMode = .idle
-    private var engineOn = false
+    /// Single source of truth for the engine chip — views read this, never a
+    /// parallel flag (a duplicated flag once desynced engine hours from the UI).
+    private(set) var engineOn = false
     private var lastEngineToggle: Date?
+
+    /// Fired on voyage meta changes (start / stop / destination) so the widget
+    /// coordinator can rebuild the snapshot immediately, bypassing its throttle.
+    var onVoyageMetaChange: (() -> Void)?
+
+    /// Last ingested position — kept here so the hot path never touches
+    /// `orderedTrack` (which sorts the whole relationship array on every call).
+    private var lastPointCoord: GeoCoordinate?
+
+    /// Track points are batched to disk: a save every fix (~every 5 m) is pure
+    /// write amplification. Logbook events still save immediately — they are
+    /// rare and precious.
+    private var pendingPoints = 0
+    private var lastTrackSaveAt = Date.distantPast
+    private let saveEveryPoints = 10
+    private let saveEverySeconds: TimeInterval = 12
 
     init(context: ModelContext) {
         self.context = context
         self.activeVoyage = Self.fetchRecording(in: context)
+        if let voyage = activeVoyage {
+            // One-time sort at launch is fine; per-fix sorts are not.
+            lastPointCoord = voyage.orderedTrack.last?.coordinate
+            restoreEngineState(from: voyage)
+        }
+    }
+
+    /// After a process restart mid-voyage the in-memory engine flag is lost
+    /// while the logbook still says "engine on" — without this, engine hours
+    /// stop accruing and the next toggle writes a second `engineOn`. We resume
+    /// counting from relaunch (the dark interval is not invented).
+    private func restoreEngineState(from voyage: Voyage) {
+        let lastEngineEvent = voyage.chronologicalEvents.last {
+            $0.type == .engineOn || $0.type == .engineOff
+        }
+        if lastEngineEvent?.type == .engineOn {
+            engineOn = true
+            lastEngineToggle = .now
+            if propulsion == .idle { propulsion = .engine }
+        }
     }
 
     var isRecording: Bool { activeVoyage?.isRecording ?? false }
@@ -41,9 +79,12 @@ final class VoyageRecorder {
                             destinationLon: destination?.longitude)
         context.insert(voyage)
         activeVoyage = voyage
+        lastPointCoord = nil
+        pendingPoints = 0
         addEvent(.startLogging)
         addEvent(.startTrack)
         save()
+        onVoyageMetaChange?()
         return voyage
     }
 
@@ -53,7 +94,10 @@ final class VoyageRecorder {
         voyage.isRecording = false
         voyage.endedAt = .now
         activeVoyage = nil
-        save()
+        lastPointCoord = nil
+        pendingPoints = 0
+        save()                            // flushes any batched track points too
+        onVoyageMetaChange?()
     }
 
     // MARK: Ingest
@@ -63,14 +107,20 @@ final class VoyageRecorder {
         guard let voyage = activeVoyage, voyage.isRecording else { return }
         let coord = GeoCoordinate(location.coordinate)
         guard coord.isValid else { return }
+        // Garbage fixes never reach the track; only confident ones (≤ 50 m)
+        // feed the integrated distance — a 100 m-accuracy fix can "add" a
+        // hundred phantom metres while moored.
+        let accuracy = location.horizontalAccuracy
+        guard accuracy > 0, accuracy <= 100 else { return }
 
-        if let last = voyage.orderedTrack.last {
-            let delta = NavigationMath.haversineMeters(last.coordinate, coord)
+        if let last = lastPointCoord {
+            let delta = NavigationMath.haversineMeters(last, coord)
             // Reject GPS jitter (< 2 m) and teleport spikes (> 1 km between fixes).
-            if delta >= 2, delta < 1_000 {
+            if accuracy <= 50, delta >= 2, delta < 1_000 {
                 voyage.distanceMeters += delta
             }
         }
+        lastPointCoord = coord
 
         let point = TrackPoint(timestamp: location.timestamp,
                                latitude: coord.latitude, longitude: coord.longitude,
@@ -81,7 +131,13 @@ final class VoyageRecorder {
         context.insert(point)
 
         accrueEngineTime()
-        save()
+        pendingPoints += 1
+        if pendingPoints >= saveEveryPoints
+            || Date.now.timeIntervalSince(lastTrackSaveAt) >= saveEverySeconds {
+            pendingPoints = 0
+            lastTrackSaveAt = .now
+            save()
+        }
     }
 
     // MARK: Quick actions / events
@@ -96,6 +152,27 @@ final class VoyageRecorder {
             lastEngineToggle = nil
             addEvent(.engineOff)
         }
+    }
+
+    /// The one engine toggle every screen calls (Today, Quick Actions).
+    /// Outside a recording only the flag flips (chips + starting propulsion);
+    /// during one, hours accrue and the event is logged. `sailsUp` is the
+    /// current sail-chip state, so propulsion stays consistent no matter which
+    /// screen toggled the engine.
+    func toggleEngine(sailsUp: Bool) {
+        if isRecording {
+            toggleEngine()
+        } else {
+            engineOn.toggle()
+        }
+        propulsion = engineOn ? (sailsUp ? .sailsAndEngine : .engine)
+                              : (sailsUp ? .sails : .idle)
+    }
+
+    /// Keeps propulsion in agreement after the sail chips change.
+    func setSailState(up: Bool) {
+        propulsion = up ? (engineOn ? .sailsAndEngine : .sails)
+                        : (engineOn ? .engine : .idle)
     }
 
     private func accrueEngineTime() {
@@ -156,6 +233,7 @@ final class VoyageRecorder {
             voyage.destinationName = String(localized: "map.waypoint")
         }
         addEvent(.turnToWaypoint, at: current, heading: heading) // also saves
+        onVoyageMetaChange?()
     }
 
     // MARK: Derived live values

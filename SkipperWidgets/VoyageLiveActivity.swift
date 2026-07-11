@@ -22,7 +22,12 @@ struct VoyageLiveActivity: Widget {
                     }
                 }
                 DynamicIslandExpandedRegion(.trailing) {
-                    if context.state.isRecording {
+                    if context.isStale {
+                        HStack(spacing: 4) {
+                            Circle().fill(WidgetPalette.orange).frame(width: 6, height: 6)
+                            Text("NO DATA").font(.caption2.weight(.bold)).foregroundStyle(WidgetPalette.orange)
+                        }
+                    } else if context.state.isRecording {
                         HStack(spacing: 4) {
                             Circle().fill(WidgetPalette.green).frame(width: 6, height: 6)
                             Text("REC").font(.caption2.weight(.bold)).foregroundStyle(WidgetPalette.green)
@@ -42,7 +47,7 @@ struct VoyageLiveActivity: Widget {
             } compactLeading: {
                 Image(systemName: "sailboat.fill").foregroundStyle(WidgetPalette.blue)
             } compactTrailing: {
-                Text("\(context.state.speedKn.oneDecimalW)kn")
+                Text(context.isStale ? "—" : "\(context.state.speedKn.oneDecimalW)kn")
                     .font(.caption2).monospacedDigit()
             } minimal: {
                 Image(systemName: "sailboat.fill").foregroundStyle(WidgetPalette.blue)
@@ -80,7 +85,12 @@ struct LockScreenLiveActivityView: View {
                     Image(systemName: "sailboat.fill").foregroundStyle(WidgetPalette.blue)
                 }
                 Spacer()
-                if context.state.isRecording {
+                if context.isStale {
+                    HStack(spacing: 4) {
+                        Circle().fill(WidgetPalette.orange).frame(width: 7, height: 7)
+                        Text("NO DATA").font(.caption2.weight(.bold)).foregroundStyle(WidgetPalette.orange)
+                    }
+                } else if context.state.isRecording {
                     HStack(spacing: 4) {
                         Circle().fill(WidgetPalette.green).frame(width: 7, height: 7)
                         Text("REC").font(.caption2.weight(.bold)).foregroundStyle(WidgetPalette.green)
@@ -88,7 +98,7 @@ struct LockScreenLiveActivityView: View {
                 }
             }
             HStack(spacing: 20) {
-                metric("\(context.state.speedKn.oneDecimalW)", "kn", "Speed")
+                metric(context.isStale ? "—" : "\(context.state.speedKn.oneDecimalW)", "kn", "Speed")
                 metric("\(Int(context.state.courseDegrees))°", nil, "Course")
                 if let r = context.state.remainingNM { metric("\(r.oneDecimalW)", "nm", "To WP") }
                 if let eta = context.state.etaEpoch { metric(etaString(eta), nil, "ETA") }

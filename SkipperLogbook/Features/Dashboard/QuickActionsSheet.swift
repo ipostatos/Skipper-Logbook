@@ -26,8 +26,8 @@ struct QuickActionsSheet: View {
                 QuickActionButton(symbol: "note.text", title: "action.event") {
                     dismiss(); router.present(.addLogEvent)
                 }
-                QuickActionButton(symbol: appState.engineOn ? "fanblades.fill" : "fanblades",
-                                  title: appState.engineOn ? "action.engine_off" : "action.engine_on") {
+                QuickActionButton(symbol: recorder.engineOn ? "fanblades.fill" : "fanblades",
+                                  title: recorder.engineOn ? "action.engine_off" : "action.engine_on") {
                     toggleEngine(); dismiss()
                 }
                 QuickActionButton(symbol: "sailboat.fill", title: "action.sails") {
@@ -64,8 +64,7 @@ struct QuickActionsSheet: View {
     }
 
     private func toggleEngine() {
-        appState.engineOn.toggle()
-        if recorder.isRecording { recorder.toggleEngine() }
+        recorder.toggleEngine(sailsUp: appState.mainsailPercent != nil)
     }
 
     private func toggleSails() {
@@ -78,5 +77,6 @@ struct QuickActionsSheet: View {
             appState.mainsailPercent = nil; appState.jibPercent = nil
             if recorder.isRecording { recorder.addEvent(.sailsDown, at: location.currentCoordinate) }
         }
+        recorder.setSailState(up: appState.mainsailPercent != nil)
     }
 }

@@ -12,6 +12,7 @@ struct MoreMenuView: View {
     var body: some View {
         ScrollView {
             LazyVGrid(columns: columns, spacing: Spacing.sm) {
+                tile("safety.title", "cross.case.fill", Color(hex: "B33A3A"), id: "more.tile.safety") { router.morePathAppend(.safety) }
                 tile("more.vessel", "sailboat.fill", Color(hex: "1F6E8C"), id: "more.tile.vessel") { router.morePathAppend(.vessel) }
                 tile("more.engine_log", "fanblades.fill", Color(hex: "C77E3A"), id: "more.tile.engine_log") { router.morePathAppend(.maintenance) }
                 tile("more.service_notes", "book.closed.fill", Color(hex: "3E7C57"), id: "more.tile.service_notes") { router.morePathAppend(.serviceNotes) }

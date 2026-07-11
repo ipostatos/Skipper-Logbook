@@ -19,6 +19,9 @@ struct SkipperLogbookApp: App {
     @State private var anchorWatch: AnchorWatchEngine
     @State private var mob: MOBEngine
     @State private var liveActivity: LiveActivityController
+    /// Owns the fix fan-out (engines + widgets) outside the view layer — the
+    /// safety chain must not depend on a SwiftUI scene being alive.
+    @State private var fixCoordinator: FixCoordinator
 
     init() {
         let container = PersistenceController.makeContainer()
@@ -44,12 +47,25 @@ struct SkipperLogbookApp: App {
         _appState = State(initialValue: AppState())
         _themeManager = State(initialValue: ThemeManager())
         _router = State(initialValue: AppRouter())
-        _locationManager = State(initialValue: LocationManager())
+        let location = LocationManager()
+        _locationManager = State(initialValue: location)
         _permissions = State(initialValue: PermissionsCenter())
-        _recorder = State(initialValue: VoyageRecorder(context: context))
-        _anchorWatch = State(initialValue: AnchorWatchEngine(context: context))
-        _mob = State(initialValue: MOBEngine(context: context))
-        _liveActivity = State(initialValue: LiveActivityController())
+        let recorder = VoyageRecorder(context: context)
+        let anchorWatch = AnchorWatchEngine(context: context)
+        let mob = MOBEngine(context: context)
+        let liveActivity = LiveActivityController()
+        _recorder = State(initialValue: recorder)
+        _anchorWatch = State(initialValue: anchorWatch)
+        _mob = State(initialValue: mob)
+        _liveActivity = State(initialValue: liveActivity)
+
+        // Fan-out lives outside the view layer: as long as the process runs and
+        // CoreLocation delivers, the recorder and safety engines get every fix.
+        let coordinator = FixCoordinator(location: location, recorder: recorder,
+                                         anchorWatch: anchorWatch, mob: mob,
+                                         liveActivity: liveActivity, context: context)
+        _fixCoordinator = State(initialValue: coordinator)
+        coordinator.activate()
     }
 
     var body: some Scene {

@@ -25,9 +25,18 @@ final class AnchorWatchEngine {
     private let context: ModelContext
     private let maxTrail = 200
     private let log = Logger(subsystem: "com.skipperlogbook.app", category: "AnchorWatch")
-    /// Latched after the alarm fires; resets once the boat is safely back inside
-    /// (80% of the radius) so boundary jitter can't re-fire it continuously.
-    private var alarmLatched = false
+    /// One "excursion" = one trip outside the circle. The logbook records it
+    /// once, but the audible alarm REPEATS every `alarmRepeatInterval` while
+    /// the boat stays outside — a single beep does not wake a sleeping skipper.
+    /// The excursion clears once the boat is safely back inside (80% of the
+    /// radius) so boundary jitter can't re-trigger it continuously.
+    private var excursionActive = false
+    private var lastAlarmAt = Date.distantPast
+    private let alarmRepeatInterval: TimeInterval = 20
+    /// Session writes are throttled: state changes and deviation growth persist
+    /// immediately, otherwise at most every 30 s (an all-night watch must not
+    /// hit the disk on every fix).
+    private var lastPersistAt = Date.distantPast
     /// nil until the user has answered the notification-permission prompt; the
     /// watch UI warns when this is false (the lock-screen half of the alarm is
     /// dead in that case).
@@ -61,7 +70,8 @@ final class AnchorWatchEngine {
         trail = [anchor]
         currentDistanceMeters = 0
         isDragging = false
-        alarmLatched = false
+        excursionActive = false
+        lastAlarmAt = .distantPast
         LogEvent.record(.anchorDown, in: context, at: anchor)
         save()
         requestAlarmAuthorization()
@@ -74,7 +84,7 @@ final class AnchorWatchEngine {
         session = nil
         trail = []
         isDragging = false
-        alarmLatched = false
+        excursionActive = false
         LogEvent.record(.anchorUp, in: context, at: s.anchor)
         save()
     }
@@ -90,35 +100,55 @@ final class AnchorWatchEngine {
         guard let s = session, s.isActive, coordinate.isValid else { return }
         let distance = NavigationMath.haversineMeters(s.anchor, coordinate)
         currentDistanceMeters = distance
-        if distance > s.maxDeviationMeters { s.maxDeviationMeters = distance }
+        var deviationGrew = false
+        if distance > s.maxDeviationMeters + 0.5 {
+            s.maxDeviationMeters = distance
+            deviationGrew = true
+        }
+        let wasDragging = isDragging
         isDragging = distance > s.radiusMeters
 
-        if isDragging, !alarmLatched {
-            alarmLatched = true
-            fireDragAlarm(at: coordinate, distance: distance)
-        } else if distance < s.radiusMeters * 0.8 {
-            alarmLatched = false
+        if isDragging {
+            if !excursionActive {
+                excursionActive = true
+                fireDragAlarm(at: coordinate, distance: distance, logEntry: true)
+            } else if Date.now.timeIntervalSince(lastAlarmAt) >= alarmRepeatInterval {
+                // Still dragging: keep sounding, but don't spam the logbook —
+                // one excursion is one logbook line.
+                fireDragAlarm(at: coordinate, distance: distance, logEntry: false)
+            }
+        } else if excursionActive, distance < s.radiusMeters * 0.8 {
+            excursionActive = false
+            postAllClearNotification()
         }
 
         trail.append(coordinate)
         if trail.count > maxTrail { trail.removeFirst(trail.count - maxTrail) }
-        save()
+
+        if wasDragging != isDragging || deviationGrew
+            || Date.now.timeIntervalSince(lastPersistAt) >= 30 {
+            lastPersistAt = .now
+            save()
+        }
     }
 
     // MARK: Alarm
 
     /// An anchor watch that cannot wake the skipper is decoration: haptic thump,
-    /// audible alert, local notification (for backgrounded/locked phones), and a
-    /// logbook record of the excursion.
-    private func fireDragAlarm(at coordinate: GeoCoordinate, distance: Double) {
+    /// audible alert, time-sensitive local notification (for backgrounded/locked
+    /// phones), and — once per excursion — a logbook record.
+    private func fireDragAlarm(at coordinate: GeoCoordinate, distance: Double, logEntry: Bool) {
+        lastAlarmAt = .now
         if !Self.isRunningTests {
             UINotificationFeedbackGenerator().notificationOccurred(.error)
             AudioServicesPlayAlertSound(SystemSoundID(1005))
             postDragNotification(distance: distance)
         }
-        LogEvent.record(.anchorAlarm, in: context, at: coordinate,
-                        note: String(localized: "anchor.drag_alarm_note"))
-        log.warning("Anchor drag alarm at \(Int(distance)) m")
+        if logEntry {
+            LogEvent.record(.anchorAlarm, in: context, at: coordinate,
+                            note: String(localized: "anchor.drag_alarm_note"))
+            log.warning("Anchor drag alarm at \(Int(distance)) m")
+        }
     }
 
     private func requestAlarmAuthorization() {
@@ -137,7 +167,25 @@ final class AnchorWatchEngine {
         // Explicit format lookup — unambiguous against the catalog key.
         content.body = String(format: String(localized: "anchor.alarm_body"), Int(distance))
         content.sound = .default
-        let request = UNNotificationRequest(identifier: "anchor.drag",
+        // Break through Focus / silenced delivery — this is exactly what the
+        // Time Sensitive level exists for (entitlement added to the app target).
+        content.interruptionLevel = .timeSensitive
+        // Unique id per repeat: replacing a still-delivered "anchor.drag" would
+        // update it silently instead of alerting again.
+        let request = UNNotificationRequest(identifier: "anchor.drag.\(UUID().uuidString)",
+                                            content: content, trigger: nil)
+        UNUserNotificationCenter.current().add(request)
+    }
+
+    /// Gentle follow-up so a skipper woken by the drag alarm knows the boat is
+    /// back inside the circle (re-anchored / swing corrected).
+    private func postAllClearNotification() {
+        guard !Self.isRunningTests else { return }
+        let content = UNMutableNotificationContent()
+        content.title = String(localized: "anchor.all_clear_title")
+        content.body = String(localized: "anchor.all_clear_body")
+        content.sound = .default
+        let request = UNNotificationRequest(identifier: "anchor.allclear",
                                             content: content, trigger: nil)
         UNUserNotificationCenter.current().add(request)
     }

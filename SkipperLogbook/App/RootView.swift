@@ -3,17 +3,14 @@ import SwiftData
 
 /// The root tab shell. Hosts one `NavigationStack` per tab, the custom bottom
 /// bar with a floating +, the quick-actions sheet, and the full-screen MOB
-/// cover. It also fans live location fixes out to the recorder / anchor / MOB
-/// engines so a single location stream drives everything.
+/// cover. Location fan-out to the engines lives in `FixCoordinator` (NOT here):
+/// safety-critical ingestion must not depend on a SwiftUI scene being alive.
 struct RootView: View {
     @Environment(\.appTheme) private var theme
     @Environment(AppRouter.self) private var router
     @Environment(LocationManager.self) private var location
-    @Environment(VoyageRecorder.self) private var recorder
     @Environment(AnchorWatchEngine.self) private var anchorWatch
     @Environment(MOBEngine.self) private var mob
-    @Environment(LiveActivityController.self) private var liveActivity
-    @Environment(\.modelContext) private var modelContext
 
     var body: some View {
         @Bindable var router = router
@@ -48,15 +45,9 @@ struct RootView: View {
                 MOBActiveView().environment(\.appTheme, theme)
             }
         }
-        .onAppear { location.start(); updateSafetyOverride(); syncWidgets() }
-        .onChange(of: location.currentLocation) { _, newValue in
-            guard let loc = newValue else { return }
-            recorder.ingest(loc)
-            anchorWatch.ingest(GeoCoordinate(loc.coordinate))
-            mob.ingest(boat: GeoCoordinate(loc.coordinate))
-            syncWidgets()
-        }
-        .onChange(of: recorder.isRecording) { _, _ in syncWidgets() }
+        .onAppear { location.start(); updateSafetyOverride() }
+        // The coordinator enforces this on every fix too; these hooks apply it
+        // the instant a watch starts/stops, before the next fix arrives.
         .onChange(of: anchorWatch.isActive) { _, _ in updateSafetyOverride() }
         .onChange(of: mob.isActive) { _, _ in updateSafetyOverride() }
     }
@@ -65,79 +56,6 @@ struct RootView: View {
     /// the anchor alarm / MOB range stay live with the phone locked.
     private func updateSafetyOverride() {
         location.safetyBackgroundOverride = anchorWatch.isActive || mob.isActive
-    }
-
-    /// Builds a snapshot from current state and pushes it to widgets + Live
-    /// Activity. Cheap enough to call on each fix.
-    private func syncWidgets() {
-        let coord = location.currentCoordinate
-        let voyage = recorder.activeVoyage
-        let vessel = (try? modelContext.fetch(FetchDescriptor<Vessel>()))?.first
-        let allVoyages = (try? modelContext.fetch(FetchDescriptor<Voyage>())) ?? []
-        let remainingM = recorder.remainingDistanceMeters(from: coord)
-
-        // This-month streak
-        let cal = Calendar.current
-        let monthVoyages = allVoyages.filter { cal.isDate($0.startedAt, equalTo: .now, toGranularity: .month) }
-        let milesThisMonth = monthVoyages.reduce(0) { $0 + $1.distanceNM }
-
-        // Soonest maintenance
-        let maint = (try? modelContext.fetch(FetchDescriptor<MaintenanceItem>())) ?? []
-        let nextService = maint.compactMap { item -> (String, Double)? in
-            guard let hours = item.nextServiceHours, let done = item.engineHoursAtService else { return nil }
-            return (item.title, max(0, hours - done))
-        }.min { $0.1 < $1.1 }
-
-        let snapshot = VoyageSnapshot(
-            isRecording: recorder.isRecording,
-            voyageName: voyage?.name ?? "",
-            origin: nil,
-            destination: voyage?.destinationName,
-            speedKn: Units.mpsToKnots(location.speedMps),
-            courseDegrees: location.effectiveHeading,
-            distanceNM: voyage?.distanceNM ?? 0,
-            remainingNM: remainingM.map(Units.metersToNM),
-            etaEpoch: recorder.etaSeconds(from: coord, speedMps: location.speedMps)
-                .map { Date.now.addingTimeInterval($0).timeIntervalSince1970 },
-            fuelPercent: fuelPercent(vessel: vessel, voyage: voyage),
-            nextServiceTitle: nextService?.0,
-            nextServiceHoursLeft: nextService?.1,
-            voyagesThisMonth: monthVoyages.count,
-            milesThisMonth: milesThisMonth,
-            updatedEpoch: 0
-        )
-        liveActivity.publish(snapshot)
-
-        // Drive the Live Activity when recording.
-        if recorder.isRecording {
-            let progress = routeProgress(voyage: voyage, remainingM: remainingM)
-            let state = VoyageActivityAttributes.ContentState(
-                speedKn: snapshot.speedKn, courseDegrees: snapshot.courseDegrees,
-                distanceNM: snapshot.distanceNM, remainingNM: snapshot.remainingNM,
-                etaEpoch: snapshot.etaEpoch, progress: progress, isRecording: true)
-            liveActivity.startActivity(name: snapshot.voyageName, origin: snapshot.origin,
-                                       destination: snapshot.destination, state: state)
-        } else {
-            Task { await liveActivity.endActivity() }
-        }
-    }
-
-    private func fuelPercent(vessel: Vessel?, voyage: Voyage?) -> Double? {
-        guard let cap = vessel?.fuelCapacityLiters, cap > 0 else { return nil }
-        let used = voyage?.fuelUsedLiters ?? 0
-        return max(0, min(100, (cap - used) / cap * 100))
-    }
-
-    private func routeProgress(voyage: Voyage?, remainingM: Double?) -> Double {
-        guard let planned = voyage?.plannedDistanceMeters, planned > 0,
-              let remaining = remainingM else {
-            // Fall back to distance-so-far vs. distance+remaining.
-            let done = (voyage?.distanceMeters ?? 0)
-            let rem = remainingM ?? 0
-            let total = done + rem
-            return total > 0 ? min(1, done / total) : 0
-        }
-        return min(1, max(0, 1 - remaining / planned))
     }
 
     // MARK: Tab content — each tab is its own navigation stack
@@ -202,6 +120,7 @@ private struct AppRoutesModifier: ViewModifier {
             case .serviceNotes: ServiceNotesView()
             case .seasonLog:    SeasonLogView()
             case .deviation:    DeviationView()
+            case .safety:       SafetyView()
             case .statistics:   StatisticsView()
             case .weather:      WeatherView()
             case .settings:     SettingsView()

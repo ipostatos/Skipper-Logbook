@@ -24,6 +24,16 @@ struct ActiveVoyageWidgetView: View {
     let entry: VoyageEntry
     private var s: VoyageSnapshot { entry.snapshot }
 
+    /// The app stamps `updatedEpoch` on every publish. If it stops publishing
+    /// (killed / crashed / GPS gone) while the snapshot still says "recording",
+    /// the data is stale — show that instead of presenting a frozen speed as
+    /// live. 15 min ≫ the app's own refresh cadence.
+    private var isStale: Bool {
+        s.isRecording && s.updatedEpoch > 0
+            && entry.date.timeIntervalSince1970 - s.updatedEpoch > 900
+    }
+    private var speedText: String { isStale ? "—" : s.speedKn.oneDecimalW }
+
     var body: some View {
         switch family {
         case .systemSmall:        small
@@ -42,7 +52,7 @@ struct ActiveVoyageWidgetView: View {
             header
             Spacer(minLength: 0)
             HStack(alignment: .firstTextBaseline, spacing: 3) {
-                Text(s.speedKn.oneDecimalW).font(.system(size: 30, weight: .bold, design: .rounded)).monospacedDigit()
+                Text(speedText).font(.system(size: 30, weight: .bold, design: .rounded)).monospacedDigit()
                 Text("kn").font(.caption).foregroundStyle(.secondary)
             }
             Text("\(Int(s.courseDegrees))° · \(s.distanceNM.oneDecimalW) nm")
@@ -57,7 +67,7 @@ struct ActiveVoyageWidgetView: View {
         VStack(alignment: .leading, spacing: 8) {
             header
             HStack(spacing: 16) {
-                WidgetMetric(value: s.speedKn.oneDecimalW, unit: "kn", label: "Speed", tint: WidgetPalette.blue)
+                WidgetMetric(value: speedText, unit: "kn", label: "Speed", tint: WidgetPalette.blue)
                 WidgetMetric(value: "\(Int(s.courseDegrees))°", unit: nil, label: "Course", tint: WidgetPalette.cyan)
                 WidgetMetric(value: s.remainingNM.map { $0.oneDecimalW } ?? "—", unit: "nm", label: "To WP", tint: WidgetPalette.purple)
                 if let eta = s.etaEpoch {
@@ -78,7 +88,7 @@ struct ActiveVoyageWidgetView: View {
                 Text("° course").font(.headline).foregroundStyle(.secondary)
             }
             HStack(spacing: 20) {
-                WidgetMetric(value: s.speedKn.oneDecimalW, unit: "kn", label: "Speed", tint: WidgetPalette.blue)
+                WidgetMetric(value: speedText, unit: "kn", label: "Speed", tint: WidgetPalette.blue)
                 WidgetMetric(value: s.distanceNM.oneDecimalW, unit: "nm", label: "Logged", tint: WidgetPalette.cyan)
                 WidgetMetric(value: s.remainingNM.map { $0.oneDecimalW } ?? "—", unit: "nm", label: "Remaining", tint: WidgetPalette.purple)
             }
@@ -101,14 +111,15 @@ struct ActiveVoyageWidgetView: View {
         VStack(alignment: .leading, spacing: 2) {
             Text(s.voyageName.isEmpty ? "Skipper Logbook" : s.voyageName)
                 .font(.headline).lineLimit(1)
-            Text("\(s.speedKn.oneDecimalW) kn · \(Int(s.courseDegrees))°" +
+            Text("\(speedText) kn · \(Int(s.courseDegrees))°" +
                  (s.remainingNM.map { " · \($0.oneDecimalW) nm" } ?? ""))
                 .font(.caption)
         }
     }
 
     private var inline: some View {
-        Text("\(s.speedKn.oneDecimalW) kn · \(Int(s.courseDegrees))°" + (s.isRecording ? " · REC" : ""))
+        Text("\(speedText) kn · \(Int(s.courseDegrees))°"
+             + (isStale ? " · no data" : (s.isRecording ? " · REC" : "")))
     }
 
     // MARK: Pieces
@@ -119,12 +130,21 @@ struct ActiveVoyageWidgetView: View {
             Text(s.voyageName.isEmpty ? "No voyage" : s.voyageName)
                 .font(.caption.weight(.semibold)).lineLimit(1)
             Spacer()
+            if isStale {
+                Text("No recent data").font(.system(size: 9, weight: .medium))
+                    .foregroundStyle(WidgetPalette.orange)
+            }
         }
     }
 
     private var recordingLabel: some View {
         Group {
-            if s.isRecording {
+            if isStale {
+                HStack(spacing: 4) {
+                    Circle().fill(WidgetPalette.orange).frame(width: 6, height: 6)
+                    Text("No recent data").font(.system(size: 9, weight: .medium)).foregroundStyle(WidgetPalette.orange)
+                }
+            } else if s.isRecording {
                 HStack(spacing: 4) {
                     Circle().fill(WidgetPalette.green).frame(width: 6, height: 6)
                     Text("Recording").font(.system(size: 9, weight: .medium)).foregroundStyle(WidgetPalette.green)

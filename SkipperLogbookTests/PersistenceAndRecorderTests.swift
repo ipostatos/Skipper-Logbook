@@ -81,6 +81,49 @@ final class PersistenceAndRecorderTests: XCTestCase {
         XCTAssertNil(recorder.activeVoyage)
     }
 
+    func testRecorderRejectsPoorAccuracyFixes() throws {
+        let context = makeContext()
+        let recorder = VoyageRecorder(context: context)
+        recorder.startVoyage(named: "Test")
+
+        let a = GeoCoordinate(latitude: 43.0, longitude: 5.0)
+        let b = NavigationMath.destination(from: a, bearingDegrees: 90, distanceMeters: 100)
+        let c = NavigationMath.destination(from: b, bearingDegrees: 90, distanceMeters: 100)
+        func fix(_ coord: GeoCoordinate, accuracy: Double) -> CLLocation {
+            CLLocation(coordinate: coord.clCoordinate, altitude: 0,
+                       horizontalAccuracy: accuracy, verticalAccuracy: 5,
+                       course: 90, speed: 3, timestamp: Date())
+        }
+
+        recorder.ingest(fix(a, accuracy: 5))     // good — first point
+        recorder.ingest(fix(b, accuracy: 250))   // garbage — dropped entirely
+        recorder.ingest(fix(b, accuracy: 80))    // usable point, but too loose for distance
+        recorder.ingest(fix(c, accuracy: 5))     // good — integrates b→c
+
+        let voyage = try XCTUnwrap(recorder.activeVoyage)
+        XCTAssertEqual(voyage.trackPoints.count, 3)          // 250 m fix never recorded
+        XCTAssertEqual(voyage.distanceMeters, 100, accuracy: 15) // only the confident leg counts
+    }
+
+    func testRecorderRestoresEngineStateAcrossRelaunch() throws {
+        let context = makeContext()
+        let first = VoyageRecorder(context: context)
+        first.startVoyage(named: "Test")
+        first.toggleEngine()                     // engine ON, logged
+        try context.save()
+
+        // Simulate a process restart mid-voyage: a fresh recorder must pick up
+        // the active voyage AND the fact that the engine is still running —
+        // otherwise the next toggle logs a second engineOn.
+        let second = VoyageRecorder(context: context)
+        XCTAssertTrue(second.isRecording)
+        second.toggleEngine()                    // engine OFF
+
+        let events = try context.fetch(FetchDescriptor<LogEvent>())
+        XCTAssertEqual(events.filter { $0.type == .engineOn }.count, 1)
+        XCTAssertEqual(events.filter { $0.type == .engineOff }.count, 1)
+    }
+
     // MARK: Anchor watch
 
     func testAnchorWatchDistanceAndDrag() throws {
@@ -100,6 +143,29 @@ final class PersistenceAndRecorderTests: XCTestCase {
         engine.ingest(outside)
         XCTAssertTrue(engine.isDragging)
         XCTAssertEqual(engine.session?.maxDeviationMeters ?? 0, 25, accuracy: 1)
+    }
+
+    func testAnchorAlarmLogsOncePerExcursionAndAgainAfterReentry() throws {
+        let context = makeContext()
+        let engine = AnchorWatchEngine(context: context)
+        let anchor = GeoCoordinate(latitude: 43.0, longitude: 5.0)
+        engine.start(at: anchor, radiusMeters: 15)
+
+        let outside = NavigationMath.destination(from: anchor, bearingDegrees: 0, distanceMeters: 25)
+        let inside = NavigationMath.destination(from: anchor, bearingDegrees: 0, distanceMeters: 5)
+
+        engine.ingest(outside)                    // excursion #1 → one log entry
+        engine.ingest(outside)                    // still outside → alarm repeats, log does NOT
+        var alarms = try context.fetch(FetchDescriptor<LogEvent>())
+            .filter { $0.type == .anchorAlarm }
+        XCTAssertEqual(alarms.count, 1)
+
+        engine.ingest(inside)                     // back well inside (< 80% of radius) — excursion over
+        XCTAssertFalse(engine.isDragging)
+        engine.ingest(outside)                    // excursion #2 → second log entry
+        alarms = try context.fetch(FetchDescriptor<LogEvent>())
+            .filter { $0.type == .anchorAlarm }
+        XCTAssertEqual(alarms.count, 2)
     }
 
     // MARK: MOB

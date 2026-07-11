@@ -25,6 +25,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Manual log entry button in the Logbook toolbar.
 
 ### Changed
+- **Safety-critical fix fan-out moved out of the view layer** — a new
+  `FixCoordinator` (built in the app's init) routes every accepted GPS fix to
+  the recorder, anchor watch and MOB engines and keeps the background-location
+  override enforced. Previously this lived in `RootView.onChange`, so the
+  anchor alarm depended on a SwiftUI scene being alive.
+- **Anchor drag alarm now repeats** every 20 s while the boat stays outside the
+  radius (sound + haptic + a fresh time-sensitive notification each time; the
+  logbook still gets exactly one entry per excursion), and posts an
+  "anchor holding again" notification once the boat is back inside 80% of the
+  radius. Notifications use the Time Sensitive interruption level (entitlement
+  added) so Focus/silenced delivery can't swallow them.
+- **WidgetKit reload budget respected** — the Live Activity still updates on
+  every fix (unbudgeted), but the App-Group snapshot + `reloadAllTimelines()`
+  now run only on voyage events (start/stop/waypoint) and at most every
+  10 minutes, instead of on every fix with three full-table fetches.
+- **Track recording no longer degrades over long voyages** — the recorder keeps
+  the last point in memory instead of re-sorting the whole track on every fix,
+  and batches track-point saves (every 10 points / 12 s; events still save
+  immediately; stop flushes).
+- **GPS fix quality is now filtered** — fixes with invalid or > 100 m
+  horizontal accuracy (or stale cached timestamps) are dropped; only ≤ 50 m
+  fixes feed the integrated distance, so a moored boat can't "sail" phantom
+  metres out of accuracy noise.
 - **No demo data on first launch** — the app starts empty; the demo fleet is
   dev-only via the `--seed-demo` launch argument (previews/tests unaffected).
 - MOB triggers and resolutions are now logged from the engine, identically on all
@@ -34,6 +57,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Engine save failures are logged (os.Logger) instead of silently swallowed.
 
 ### Fixed
+- **Live Activity survives force-quits honestly**: on launch the controller
+  re-attaches to (or ends) activities that outlived the process — no more
+  orphaned/duplicate Lock Screen activities; every update carries a stale date,
+  and the Live Activity/Dynamic Island show "NO DATA" instead of presenting a
+  frozen speed as live after a dropout.
+- **Widgets detect staleness**: the home/lock-screen widgets now read the
+  snapshot's `updatedEpoch` and show "No recent data" (speed "—") when the app
+  stopped publishing more than 15 minutes ago while still marked recording.
+- **Engine state survives a relaunch mid-voyage** — the recorder restores the
+  engine-on flag from the logbook, so engine hours keep accruing and the next
+  toggle can't write a second consecutive `engineOn`.
 - Unit-system picker no longer pretends to work (disabled + Coming soon until real).
 - "Transcribe later" tile in Audio Log is now labeled Coming soon.
 - **MOB without a GPS fix** now still records the incident time in the logbook and

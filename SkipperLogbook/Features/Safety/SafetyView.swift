@@ -154,7 +154,7 @@ struct MOBButton: View {
                 .onEnded { _ in cancelHold() }
         )
         .onAppear { isPressing = true }
-        .accessibilityLabel("Man overboard")
+        .accessibilityLabel(Text("mob.title"))
         .accessibilityHint(Text("safety.press_hold"))
     }
 

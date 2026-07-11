@@ -1,7 +1,7 @@
 # Contributing to Skipper Logbook
 
 Thanks for your interest in improving Skipper Logbook. This is a native iOS app
-(SwiftUI + SwiftData) built with an [XcodeGen](https://github.com/yonyz/XcodeGen)
+(SwiftUI + SwiftData) built with an [XcodeGen](https://github.com/yonaskolb/XcodeGen)
 project spec.
 
 ## Getting set up

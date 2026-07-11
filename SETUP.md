@@ -1,6 +1,6 @@
 # Setup — Skipper Logbook
 
-This project is authored as source + an [XcodeGen](https://github.com/yonyz/XcodeGen)
+This project is authored as source + an [XcodeGen](https://github.com/yonaskolb/XcodeGen)
 spec. You generate the `.xcodeproj` on a Mac and open it in Xcode 16+ (iOS 18 SDK; the app targets iOS 17.0).
 
 ## 1. Generate & open

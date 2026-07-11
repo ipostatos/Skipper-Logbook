@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Privacy manifests** (`PrivacyInfo.xcprivacy`) for the app and the widget
+  extension — accessed-API reasons (UserDefaults CA92.1, file timestamps
+  C617.1) and an honest precise-location declaration (app functionality, not
+  linked, no tracking). Required for App Store submission.
+- **Localized system permission prompts** (`InfoPlist.xcstrings`, EN + RU) for
+  location (while-using / always — the always text now explains the anchor
+  alarm), microphone and photo library.
+- **Widgets and Live Activity are localized** (EN + RU): the shared string
+  catalog is compiled into the widget target, metric labels go through
+  LocalizedStringKey, and ETA respects the user's 12/24-hour locale setting
+  instead of hardcoded "HH:mm".
+- **`audio` background mode** so a voice note keeps recording when the screen
+  locks mid-note.
+- **Schema versioning** (`SchemaV1` + `SkipperMigrationPlan`) — future schema
+  changes get explicit migration stages instead of implicit inference.
 - **Safety screen reachable**: a Safety tile (first in the More grid) opens the
   full Safety hub — previously the screen existed but had no route to it.
 - **Add forms for all reference sections** — Equipment, Service Notes, Season
@@ -38,6 +53,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Manual log entry button in the Logbook toolbar.
 
 ### Changed
+- **A corrupted store no longer bricks the app**: instead of `fatalError`, the
+  unreadable database is moved to `Application Support/CorruptedStore-<date>/`
+  (nothing is deleted), the app starts with a fresh store and shows a one-time
+  alert; if even a fresh store fails, the app runs in-memory rather than
+  crashing.
+- **Today chips, MOB accessibility labels, map-control accessibility labels
+  and the "kn max" statistic are localized**; broken XcodeGen links fixed in
+  README/SETUP/CONTRIBUTING.
+- **CI**: xcbeautify is installed explicitly (its absence made pipefail re-run
+  the whole test suite a second time), SwiftLint is strict again (can fail the
+  job), and `*.xcresult` is git-ignored.
 - **MOB homing arrow uses a true-north basis** — the relative bearing is now
   computed against true heading (falling back to COG, also true) instead of a
   possibly-magnetic heading, and the bearing readout is labelled °T. Other

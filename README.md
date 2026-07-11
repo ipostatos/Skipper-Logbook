@@ -91,7 +91,7 @@ where to download them (and how to open the app in a browser via Appetize.io).
 
 - **macOS** with **Xcode 16+** (iOS 18 SDK — its `View`-is-`@MainActor` isolation
   model is what the code is written against; the app still targets iOS 17.0)
-- [XcodeGen](https://github.com/yonyz/XcodeGen)
+- [XcodeGen](https://github.com/yonaskolb/XcodeGen)
 
 ```bash
 brew install xcodegen

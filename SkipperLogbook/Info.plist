@@ -51,7 +51,7 @@
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Skipper Logbook uses your location to record your voyage track, speed and heading while you sail.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>Skipper Logbook uses your location in the background to keep recording your voyage track while the app is not in the foreground. Enable this only if you want continuous tracking.</string>
+	<string>Skipper Logbook uses your location in the background to keep recording your voyage track and to sound the anchor-drag alarm while the screen is locked. Enable this for continuous tracking and a reliable anchor watch.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Skipper Logbook needs access to your photos so you can add a picture of your vessel.</string>
 	<key>NSMicrophoneUsageDescription</key>
@@ -59,6 +59,8 @@
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>location</string>
+		<!-- Voice-note recording must survive the screen locking mid-note. -->
+		<string>audio</string>
 	</array>
 	<key>UIStatusBarStyle</key>
 	<string>UIStatusBarStyleDarkContent</string>

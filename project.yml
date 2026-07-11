@@ -51,12 +51,15 @@ targets:
       # Shared source files compiled into the widget target as well.
       - path: SkipperLogbook/Shared/Widget/VoyageSnapshot.swift
       - path: SkipperLogbook/Shared/Widget/VoyageActivityAttributes.swift
+      # The app's string catalog — widget/Live Activity strings live there too
+      # (EN + RU); without it the widgets ship English-only.
+      - path: SkipperLogbook/Resources/Localizable.xcstrings
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.skipperlogbook.app.widgets
         INFOPLIST_FILE: SkipperWidgets/Info.plist
         CODE_SIGN_ENTITLEMENTS: SkipperWidgets/SkipperWidgets.entitlements
-        SWIFT_EMIT_LOC_STRINGS: NO
+        SWIFT_EMIT_LOC_STRINGS: YES
 
   SkipperLogbookTests:
     type: bundle.unit-test

@@ -24,8 +24,11 @@ jobs:
       - name: Show Xcode version
         run: xcodebuild -version
 
-      - name: Install XcodeGen
-        run: brew install xcodegen
+      - name: Install XcodeGen & xcbeautify
+        # xcbeautify must actually exist: with `set -o pipefail`, piping into a
+        # missing binary fails the pipe and the `||` fallback used to re-run
+        # the whole build+test a SECOND time.
+        run: brew install xcodegen xcbeautify
 
       - name: Generate project
         run: |
@@ -62,4 +65,6 @@ jobs:
       - name: Install SwiftLint
         run: brew install swiftlint
       - name: Lint
-        run: swiftlint --strict --reporter github-actions-logging || swiftlint
+        # Strict and allowed to fail the job — a linter that can't go red is
+        # decoration.
+        run: swiftlint --strict --reporter github-actions-logging

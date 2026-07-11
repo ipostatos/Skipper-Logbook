@@ -13,7 +13,7 @@ struct BetaBadge: View {
             .background(
                 Capsule().fill(theme.accent)
             )
-            .accessibilityLabel("Beta version")
+            .accessibilityLabel(Text("badge.beta_a11y"))
     }
 }
 

@@ -1,0 +1,74 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "NSLocationAlwaysAndWhenInUseUsageDescription" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skipper Logbook uses your location in the background to keep recording your voyage track and to sound the anchor-drag alarm while the screen is locked. Enable this for continuous tracking and a reliable anchor watch."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skipper Logbook использует геопозицию в фоне, чтобы продолжать запись трека рейса и подавать якорную тревогу при заблокированном экране. Включите для непрерывного трекинга и надёжной якорной вахты."
+          }
+        }
+      }
+    },
+    "NSLocationWhenInUseUsageDescription" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skipper Logbook uses your location to record your voyage track, speed and heading while you sail."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skipper Logbook использует геопозицию, чтобы записывать трек рейса, скорость и курс во время плавания."
+          }
+        }
+      }
+    },
+    "NSMicrophoneUsageDescription" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skipper Logbook uses the microphone to record voice notes for your logbook."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skipper Logbook использует микрофон для записи голосовых заметок в судовой журнал."
+          }
+        }
+      }
+    },
+    "NSPhotoLibraryUsageDescription" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skipper Logbook needs access to your photos so you can add a picture of your vessel."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skipper Logbook нужен доступ к фото, чтобы вы могли добавить фотографию судна."
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

@@ -119,7 +119,8 @@ struct ActiveVoyageWidgetView: View {
 
     private var inline: some View {
         Text("\(speedText) kn · \(Int(s.courseDegrees))°"
-             + (isStale ? " · no data" : (s.isRecording ? " · REC" : "")))
+             + (isStale ? " · " + String(localized: "no data")
+                        : (s.isRecording ? " · " + String(localized: "REC") : "")))
     }
 
     // MARK: Pieces
@@ -127,7 +128,7 @@ struct ActiveVoyageWidgetView: View {
     private var header: some View {
         HStack(spacing: 6) {
             Image(systemName: "sailboat.fill").font(.caption).foregroundStyle(WidgetPalette.blue)
-            Text(s.voyageName.isEmpty ? "No voyage" : s.voyageName)
+            Text(s.voyageName.isEmpty ? String(localized: "No voyage") : s.voyageName)
                 .font(.caption.weight(.semibold)).lineLimit(1)
             Spacer()
             if isStale {
@@ -170,8 +171,8 @@ struct ActiveVoyageWidgetView: View {
     }
 
     private func etaString(_ epoch: Double) -> String {
-        let date = Date(timeIntervalSince1970: epoch)
-        let f = DateFormatter(); f.dateFormat = "HH:mm"
-        return f.string(from: date)
+        // Locale-aware (respects the user's 12/24-hour setting) — a hardcoded
+        // "HH:mm" showed 24-hour time to 12-hour users.
+        Date(timeIntervalSince1970: epoch).formatted(date: .omitted, time: .shortened)
     }
 }

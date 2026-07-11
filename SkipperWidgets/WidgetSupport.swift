@@ -43,11 +43,12 @@ extension Double {
     var oneDecimalW: String { String(format: "%.1f", self) }
 }
 
-/// A small labelled metric used inside widgets.
+/// A small labelled metric used inside widgets. The label is a catalog key
+/// (EN literal doubles as the key) so widgets localize like the app.
 struct WidgetMetric: View {
     let value: String
     let unit: String?
-    let label: String
+    let label: LocalizedStringKey
     var tint: Color = .primary
 
     var body: some View {

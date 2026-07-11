@@ -70,7 +70,8 @@ struct StatusChipRow: View {
         LazyVGrid(columns: columns, spacing: Spacing.xs) {
             Button(action: onEngine) {
                 StatusChip(symbol: engineOn ? "fanblades.fill" : "fanblades",
-                           title: "status.engine", value: engineOn ? "ON" : "OFF",
+                           title: "status.engine",
+                           value: engineOn ? String(localized: "chip.on") : String(localized: "chip.off"),
                            role: .orange, isActive: engineOn, caption: "status.tap_toggle")
             }.buttonStyle(.plain)
             Button(action: onSails) {
@@ -80,12 +81,14 @@ struct StatusChipRow: View {
             }.buttonStyle(.plain)
             Button(action: onAnchor) {
                 StatusChip(symbol: anchorDown ? "anchor.fill" : "anchor",
-                           title: "status.anchor", value: anchorDown ? "DOWN" : "UP",
+                           title: "status.anchor",
+                           value: anchorDown ? String(localized: "chip.down") : String(localized: "chip.up"),
                            role: .green, isActive: anchorDown, caption: "status.tap_log")
             }.buttonStyle(.plain)
             Button(action: onNote) {
                 StatusChip(symbol: "square.and.pencil", title: "status.note",
-                           value: "Add", role: .purple, isActive: true, caption: "status.tap_add")
+                           value: String(localized: "chip.add"),
+                           role: .purple, isActive: true, caption: "status.tap_add")
             }.buttonStyle(.plain)
         }
     }

@@ -121,7 +121,7 @@ struct LockScreenLiveActivityView: View {
         return context.attributes.destination ?? context.attributes.voyageName
     }
 
-    private func metric(_ value: String, _ unit: String?, _ label: String) -> some View {
+    private func metric(_ value: String, _ unit: String?, _ label: LocalizedStringKey) -> some View {
         VStack(alignment: .leading, spacing: 1) {
             HStack(alignment: .firstTextBaseline, spacing: 2) {
                 Text(value).font(.system(size: 17, weight: .semibold, design: .rounded)).monospacedDigit()
@@ -132,7 +132,7 @@ struct LockScreenLiveActivityView: View {
     }
 
     private func etaString(_ epoch: Double) -> String {
-        let f = DateFormatter(); f.dateFormat = "HH:mm"
-        return f.string(from: Date(timeIntervalSince1970: epoch))
+        // Locale-aware (respects the user's 12/24-hour setting).
+        Date(timeIntervalSince1970: epoch).formatted(date: .omitted, time: .shortened)
     }
 }

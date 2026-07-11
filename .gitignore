@@ -45,3 +45,6 @@ hermes/
 .cursor-context/
 hermes_context/
 UI/*.pdf
+
+# Xcode result bundles (CI artifacts)
+*.xcresult

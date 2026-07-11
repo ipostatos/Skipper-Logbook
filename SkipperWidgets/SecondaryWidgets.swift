@@ -21,7 +21,7 @@ struct MaintenanceWidgetView: View {
     var body: some View {
         if family == .accessoryRectangular {
             VStack(alignment: .leading, spacing: 2) {
-                Label(snapshot.nextServiceTitle ?? "Service", systemImage: "wrench.and.screwdriver.fill")
+                Label(snapshot.nextServiceTitle ?? String(localized: "Service"), systemImage: "wrench.and.screwdriver.fill")
                     .font(.headline).lineLimit(1)
                 if let h = snapshot.nextServiceHoursLeft {
                     Text("in \(Int(h)) h").font(.caption)
@@ -32,7 +32,7 @@ struct MaintenanceWidgetView: View {
                 Image(systemName: "wrench.and.screwdriver.fill")
                     .font(.title3).foregroundStyle(WidgetPalette.orange)
                 Spacer(minLength: 0)
-                Text(snapshot.nextServiceTitle ?? "No service due")
+                Text(snapshot.nextServiceTitle ?? String(localized: "No service due"))
                     .font(.headline).lineLimit(2)
                 if let h = snapshot.nextServiceHoursLeft {
                     Text("in \(Int(h)) engine hours")

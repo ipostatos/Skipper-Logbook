@@ -71,7 +71,7 @@ struct StatisticsView: View {
                 HStack {
                     SectionHeader("stats.speed")
                     Spacer()
-                    Text("\(stats.maxSpeedKn.oneDecimal) kn max")
+                    Text(String(format: String(localized: "stats.kn_max"), stats.maxSpeedKn.oneDecimal))
                         .font(AppFont.caption).foregroundStyle(theme.inkSecondary)
                 }
                 Chart(stats.speedSeries) { sample in

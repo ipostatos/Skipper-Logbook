@@ -129,12 +129,13 @@ struct MapView: View {
 
     private var controls: some View {
         VStack(spacing: Spacing.sm) {
-            mapButton("square.2.layers.3d") { hybrid.toggle() }
-            mapButton("location.fill", action: recenter)
+            mapButton("square.2.layers.3d", label: "a11y.map_layers") { hybrid.toggle() }
+            mapButton("location.fill", label: "a11y.map_recenter", action: recenter)
             // Add-waypoint only exists while a voyage records — a dead button
             // with no voyage would pretend to work.
             if recorder.activeVoyage != nil {
-                mapButton(settingWaypoint ? "xmark" : "mappin.and.ellipse") {
+                mapButton(settingWaypoint ? "xmark" : "mappin.and.ellipse",
+                          label: "a11y.map_add_waypoint") {
                     settingWaypoint.toggle()
                 }
             }
@@ -144,7 +145,8 @@ struct MapView: View {
         .padding(.bottom, Spacing.tabBarClearance + 110)
     }
 
-    private func mapButton(_ symbol: String, action: @escaping () -> Void) -> some View {
+    private func mapButton(_ symbol: String, label: LocalizedStringKey,
+                           action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: symbol)
                 .font(.system(size: 16, weight: .semibold))
@@ -154,6 +156,7 @@ struct MapView: View {
                 .cardShadow(theme)
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(Text(label))
     }
 
     /// Hold-to-activate MOB, same protection as the big Safety button.
@@ -165,7 +168,7 @@ struct MapView: View {
         .cardShadow(theme)
         .contentShape(Circle())
         .onLongPressGesture(minimumDuration: MOBButton.holdDuration) { triggerMOB() }
-        .accessibilityLabel("Man overboard")
+        .accessibilityLabel(Text("mob.title"))
         .accessibilityHint(Text("safety.press_hold"))
     }
 

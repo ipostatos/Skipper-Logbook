@@ -67,7 +67,7 @@ struct FloatingActionButton: View {
                 .shadow(color: theme.blue.opacity(0.4), radius: 12, x: 0, y: 6)
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Quick actions")
+        .accessibilityLabel(Text("action.quick_actions_title"))
     }
 }
 

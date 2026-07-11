@@ -12,6 +12,10 @@ struct RootView: View {
     @Environment(AnchorWatchEngine.self) private var anchorWatch
     @Environment(MOBEngine.self) private var mob
 
+    /// One-time notice when the on-disk store couldn't be read at launch and
+    /// was moved into a backup folder (see `PersistenceController`).
+    @State private var showStoreResetAlert = PersistenceController.storeWasReset
+
     var body: some View {
         @Bindable var router = router
 
@@ -50,6 +54,11 @@ struct RootView: View {
         // the instant a watch starts/stops, before the next fix arrives.
         .onChange(of: anchorWatch.isActive) { _, _ in updateSafetyOverride() }
         .onChange(of: mob.isActive) { _, _ in updateSafetyOverride() }
+        .alert("store.reset_title", isPresented: $showStoreResetAlert) {
+            Button("common.ok", role: .cancel) {}
+        } message: {
+            Text("store.reset_message")
+        }
     }
 
     /// While a safety engine runs, keep location flowing in the background so

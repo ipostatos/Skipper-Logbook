@@ -66,5 +66,6 @@ jobs:
         run: brew install swiftlint
       - name: Lint
         # Strict and allowed to fail the job — a linter that can't go red is
-        # decoration.
-        run: swiftlint --strict --reporter github-actions-logging
+        # decoration. The xcode reporter puts file:line for EVERY violation in
+        # the log (GitHub annotations cap at 10 and swallow the rest).
+        run: swiftlint --strict --reporter xcode

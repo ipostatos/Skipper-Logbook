@@ -21,8 +21,8 @@ final class AppState {
     // Live boat state (reflected by the dashboard status chips & quick actions).
     // Anchor state lives in AnchorWatchEngine — the single source of truth.
     var engineOn = false
-    var mainsailPercent: Int? = nil
-    var jibPercent: Int? = nil
+    var mainsailPercent: Int?
+    var jibPercent: Int?
 
     private enum Keys {
         static let onboarding = "state.hasCompletedOnboarding"

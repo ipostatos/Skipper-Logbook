@@ -18,7 +18,7 @@ enum SeedData {
 
         // Guard against re-seeding a store that already has a vessel.
         let existing = try? context.fetch(FetchDescriptor<Vessel>())
-        guard (existing?.isEmpty ?? true) else {
+        guard existing?.isEmpty ?? true else {
             defaults.set(true, forKey: didSeedKey)
             return
         }
@@ -51,10 +51,10 @@ enum SeedData {
 
         // MARK: Crew
         let crew = [
-            CrewMember(name: "Артём", role: "Captain",  phone: "+48 123 456 789", sortIndex: 0),
+            CrewMember(name: "Артём", role: "Captain", phone: "+48 123 456 789", sortIndex: 0),
             CrewMember(name: "Мария", role: "Navigator", phone: "+48 987 654 321", sortIndex: 1),
-            CrewMember(name: "Иван",  role: "Deckhand",  phone: "+48 555 111 222", sortIndex: 2),
-            CrewMember(name: "Олег",  role: "Engineer",  phone: "+48 333 666 777", sortIndex: 3)
+            CrewMember(name: "Иван", role: "Deckhand", phone: "+48 555 111 222", sortIndex: 2),
+            CrewMember(name: "Олег", role: "Engineer", phone: "+48 333 666 777", sortIndex: 3)
         ]
         crew.forEach { $0.vessel = vessel; context.insert($0) }
 
@@ -100,14 +100,14 @@ enum SeedData {
         // MARK: Voyages with tracks + rich log entries
         let baltika = makeVoyage(
             context, name: "Балтика 2025",
-            startedAt: date(cal, now, daysAgo: 21),
-            durationHours: 5.5, distanceNM: 23.4,
+            interval: DateInterval(start: date(cal, now, daysAgo: 21), duration: 5.5 * 3600),
+            distanceNM: 23.4,
             origin: GeoCoordinate(latitude: 59.957, longitude: 30.311)
         )
         let outing = makeVoyage(
             context, name: "Выход в море",
-            startedAt: date(cal, now, daysAgo: 25),
-            durationHours: 3.2, distanceNM: 12.7,
+            interval: DateInterval(start: date(cal, now, daysAgo: 25), duration: 3.2 * 3600),
+            distanceNM: 12.7,
             origin: GeoCoordinate(latitude: 59.940, longitude: 30.300)
         )
         _ = (baltika, outing)
@@ -122,10 +122,12 @@ enum SeedData {
     // MARK: - Helpers
 
     private static func makeVoyage(_ context: ModelContext, name: String,
-                                   startedAt: Date, durationHours: Double,
+                                   interval: DateInterval,
                                    distanceNM: Double, origin: GeoCoordinate) -> Voyage {
+        let startedAt = interval.start
+        let durationHours = interval.duration / 3600
         let voyage = Voyage(name: name, startedAt: startedAt,
-                            endedAt: startedAt.addingTimeInterval(durationHours * 3600),
+                            endedAt: interval.end,
                             isRecording: false,
                             distanceMeters: Units.nmToMeters(distanceNM),
                             engineSeconds: 0.3 * 3600,

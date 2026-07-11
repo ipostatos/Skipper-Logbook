@@ -6,7 +6,7 @@ struct PrimaryButton: View {
     @Environment(\.appTheme) private var theme
 
     let title: LocalizedStringKey
-    var symbol: String? = nil
+    var symbol: String?
     var role: Role = .accent
     let action: () -> Void
 

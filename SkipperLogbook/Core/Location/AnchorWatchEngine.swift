@@ -191,8 +191,11 @@ final class AnchorWatchEngine {
     }
 
     private func save() {
-        do { try context.save() }
-        catch { log.error("Anchor watch save failed: \(error.localizedDescription, privacy: .public)") }
+        do {
+            try context.save()
+        } catch {
+            log.error("Anchor watch save failed: \(error.localizedDescription, privacy: .public)")
+        }
     }
 
     private static func fetchActive(in context: ModelContext) -> AnchorWatchSession? {

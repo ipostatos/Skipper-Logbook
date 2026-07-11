@@ -5,7 +5,7 @@ import SwiftUI
 struct InfoRow: View {
     @Environment(\.appTheme) private var theme
 
-    var symbol: String? = nil
+    var symbol: String?
     let label: LocalizedStringKey
     let value: String
     var showsChevron: Bool = false

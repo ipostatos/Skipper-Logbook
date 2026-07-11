@@ -14,8 +14,7 @@ struct MaintenanceView: View {
     /// The soonest upcoming service, if any target dates/hours exist.
     private var nextService: MaintenanceItem? {
         items.filter { $0.nextServiceDate != nil || $0.nextServiceHours != nil }
-            .sorted { ($0.nextServiceDate ?? .distantFuture) < ($1.nextServiceDate ?? .distantFuture) }
-            .first
+            .min { ($0.nextServiceDate ?? .distantFuture) < ($1.nextServiceDate ?? .distantFuture) }
     }
 
     var body: some View {

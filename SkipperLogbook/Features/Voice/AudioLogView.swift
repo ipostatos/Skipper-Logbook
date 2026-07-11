@@ -153,8 +153,11 @@ struct AudioLogView: View {
     // MARK: Actions
 
     private func toggleRecording() {
-        if audio.mode == .recording { finishRecording() }
-        else { Task { await beginRecording() } }
+        if audio.mode == .recording {
+            finishRecording()
+        } else {
+            Task { await beginRecording() }
+        }
     }
 
     private func beginRecording() async {
@@ -203,8 +206,11 @@ struct AudioNoteRow: View {
     var body: some View {
         HStack(spacing: Spacing.sm) {
             Button {
-                if isPlaying { audio.stopPlayback(); isPlaying = false }
-                else { audio.play(fileName: note.fileName); isPlaying = true }
+                if isPlaying {
+                    audio.stopPlayback(); isPlaying = false
+                } else {
+                    audio.play(fileName: note.fileName); isPlaying = true
+                }
             } label: {
                 Image(systemName: isPlaying ? "stop.circle.fill" : "play.circle.fill")
                     .font(.system(size: 30)).foregroundStyle(theme.purple)

@@ -7,7 +7,7 @@ struct Card<Content: View>: View {
     @Environment(\.appTheme) private var theme
 
     var padding: CGFloat = Spacing.md
-    var cornerRadius: CGFloat? = nil
+    var cornerRadius: CGFloat?
     @ViewBuilder var content: () -> Content
 
     var body: some View {

@@ -148,35 +148,47 @@ struct TodayView: View {
         // One track-tail slice feeds both cards (orderedTrack sorts on access).
         let tail = recorder.activeVoyage.map { Array($0.orderedTrack.suffix(20)) } ?? []
         return HStack(spacing: Spacing.sm) {
-            metricSparkCard(value: "\(readout.speedKn.oneDecimal)", unit: "kn",
-                            caption: "today.speed", symbol: "gauge.with.dots.needle.bottom.50percent",
-                            role: .blue, samples: normalizedSpeeds(tail))
-            metricSparkCard(value: readout.remainingDistanceNM.map { $0.oneDecimal } ?? "—", unit: "nm",
-                            caption: "today.to_waypoint", symbol: "flag.fill",
-                            role: .purple, samples: remainingSamples(tail))
+            metricSparkCard(SparkCardSpec(value: "\(readout.speedKn.oneDecimal)", unit: "kn",
+                                          caption: "today.speed",
+                                          symbol: "gauge.with.dots.needle.bottom.50percent",
+                                          role: .blue),
+                            samples: normalizedSpeeds(tail))
+            metricSparkCard(SparkCardSpec(value: readout.remainingDistanceNM.map { $0.oneDecimal } ?? "—",
+                                          unit: "nm", caption: "today.to_waypoint",
+                                          symbol: "flag.fill", role: .purple),
+                            samples: remainingSamples(tail))
         }
     }
 
-    private func metricSparkCard(value: String, unit: String, caption: LocalizedStringKey,
-                                 symbol: String, role: AccentRole, samples: [CGFloat]) -> some View {
+    /// Everything static about a spark card — keeps the builder at two
+    /// parameters (the lint limit is five).
+    private struct SparkCardSpec {
+        let value: String
+        let unit: String
+        let caption: LocalizedStringKey
+        let symbol: String
+        let role: AccentRole
+    }
+
+    private func metricSparkCard(_ spec: SparkCardSpec, samples: [CGFloat]) -> some View {
         Card {
             VStack(alignment: .leading, spacing: Spacing.sm) {
                 HStack(spacing: 8) {
-                    Image(systemName: symbol)
+                    Image(systemName: spec.symbol)
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(theme.accent(role))
+                        .foregroundStyle(theme.accent(spec.role))
                         .frame(width: 30, height: 30)
-                        .background(Circle().fill(theme.accentSoft(role)))
+                        .background(Circle().fill(theme.accentSoft(spec.role)))
                     VStack(alignment: .leading, spacing: 0) {
                         HStack(alignment: .firstTextBaseline, spacing: 3) {
-                            Text(value).font(AppFont.numeral(24)).foregroundStyle(theme.ink).monospacedDigit()
-                            Text(unit).font(AppFont.caption).foregroundStyle(theme.inkSecondary)
+                            Text(spec.value).font(AppFont.numeral(24)).foregroundStyle(theme.ink).monospacedDigit()
+                            Text(spec.unit).font(AppFont.caption).foregroundStyle(theme.inkSecondary)
                         }
-                        Text(caption).font(AppFont.caption).foregroundStyle(theme.inkSecondary)
+                        Text(spec.caption).font(AppFont.caption).foregroundStyle(theme.inkSecondary)
                     }
                     Spacer()
                 }
-                Sparkline(samples: samples, tint: theme.accent(role))
+                Sparkline(samples: samples, tint: theme.accent(spec.role))
                     .frame(height: 30)
             }
         }

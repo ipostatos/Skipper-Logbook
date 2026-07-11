@@ -38,8 +38,11 @@ struct QuickActionsSheet: View {
                 }
                 QuickActionButton(symbol: recorder.isRecording ? "stop.circle" : "record.circle",
                                   title: recorder.isRecording ? "dash.stop_recording" : "dash.start_recording") {
-                    if recorder.isRecording { recorder.stopVoyage(); dismiss() }
-                    else { dismiss(); router.present(.newVoyage) }
+                    if recorder.isRecording {
+                        recorder.stopVoyage(); dismiss()
+                    } else {
+                        dismiss(); router.present(.newVoyage)
+                    }
                 }
                 QuickActionButton(symbol: "exclamationmark.triangle.fill", title: "action.mob",
                                   isDanger: true, requiresHold: true) {

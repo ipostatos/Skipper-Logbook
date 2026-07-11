@@ -9,8 +9,8 @@ struct StatTile: View {
     let symbol: String
     let label: LocalizedStringKey
     let value: String
-    var unit: String? = nil
-    var tint: Color? = nil
+    var unit: String?
+    var tint: Color?
 
     var body: some View {
         HStack(spacing: Spacing.sm) {
@@ -59,8 +59,8 @@ struct StatTileData: Identifiable {
     let symbol: String
     let label: LocalizedStringKey
     let value: String
-    var unit: String? = nil
-    var tint: Color? = nil
+    var unit: String?
+    var tint: Color?
 }
 
 #Preview("Stat grid") {

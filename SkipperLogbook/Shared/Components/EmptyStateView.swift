@@ -6,7 +6,7 @@ struct EmptyStateView: View {
 
     let symbol: String
     let title: LocalizedStringKey
-    var message: LocalizedStringKey? = nil
+    var message: LocalizedStringKey?
 
     var body: some View {
         VStack(spacing: Spacing.sm) {

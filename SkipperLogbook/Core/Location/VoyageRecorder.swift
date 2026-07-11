@@ -257,8 +257,11 @@ final class VoyageRecorder {
 
     private func save() {
         // Transient failures retry on the next fix, but never silently.
-        do { try context.save() }
-        catch { log.error("Recorder save failed: \(error.localizedDescription, privacy: .public)") }
+        do {
+            try context.save()
+        } catch {
+            log.error("Recorder save failed: \(error.localizedDescription, privacy: .public)")
+        }
     }
 
     private static func fetchRecording(in context: ModelContext) -> Voyage? {

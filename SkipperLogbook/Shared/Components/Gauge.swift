@@ -10,8 +10,8 @@ struct RingGauge: View {
     let maxValue: Double
     let unit: String?
     let caption: LocalizedStringKey
-    var symbol: String? = nil
-    var tint: Color? = nil
+    var symbol: String?
+    var tint: Color?
     /// Show the value as an integer percentage instead of a decimal.
     var asPercent: Bool = false
 
@@ -71,8 +71,8 @@ struct ArcGauge: View {
     let value: Double
     let maxValue: Double
     let unit: String
-    var label: LocalizedStringKey? = nil
-    var tint: Color? = nil
+    var label: LocalizedStringKey?
+    var tint: Color?
 
     private var fraction: Double {
         guard maxValue > 0 else { return 0 }

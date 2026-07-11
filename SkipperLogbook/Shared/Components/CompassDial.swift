@@ -11,7 +11,7 @@ struct CompassDial: View {
     /// heading sits under the top index).
     let heading: Double
     /// Optional absolute bearing to a waypoint; drawn as a marker on the ring.
-    var waypointBearing: Double? = nil
+    var waypointBearing: Double?
     var showNumeral: Bool = true
 
     var body: some View {

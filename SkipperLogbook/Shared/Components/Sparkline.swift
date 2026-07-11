@@ -6,7 +6,7 @@ import SwiftUI
 struct Sparkline: View {
     @Environment(\.appTheme) private var theme
     let samples: [CGFloat]      // normalized 0…1
-    var tint: Color? = nil
+    var tint: Color?
 
     var body: some View {
         GeometryReader { geo in

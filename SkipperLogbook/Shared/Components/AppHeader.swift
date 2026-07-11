@@ -6,8 +6,8 @@ struct AppHeader: View {
     @Environment(\.appTheme) private var theme
 
     var showsMOB: Bool = true
-    var onMOB: (() -> Void)? = nil
-    var trailing: AnyView? = nil
+    var onMOB: (() -> Void)?
+    var trailing: AnyView?
 
     var body: some View {
         HStack(spacing: Spacing.sm) {

@@ -104,8 +104,11 @@ final class MOBEngine {
     }
 
     private func save() {
-        do { try context.save() }
-        catch { log.error("MOB save failed: \(error.localizedDescription, privacy: .public)") }
+        do {
+            try context.save()
+        } catch {
+            log.error("MOB save failed: \(error.localizedDescription, privacy: .public)")
+        }
     }
 
     private static func fetchActive(in context: ModelContext) -> MOBPoint? {

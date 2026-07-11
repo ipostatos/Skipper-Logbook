@@ -11,7 +11,7 @@ struct StatusChip: View {
     let value: String
     let role: AccentRole
     var isActive: Bool = true
-    var caption: LocalizedStringKey? = nil
+    var caption: LocalizedStringKey?
 
     private var color: Color { theme.accent(role) }
 
